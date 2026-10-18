@@ -651,11 +651,11 @@ function monthSheet(m){
   rows.sort(function(a,b){return a.g.due<b.g.due?-1:1});
   sheet(MESES[m]+' de '+y,'<div class="totbar"><span>A receber</span><span>'+brl(Math.round(t*100)/100)+'</span></div><div class="list">'+rows.map(function(x){return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small>'+(x.g.ps.length>1?'Parcelas ':'Parcela ')+grpLbl(x.g)+' · vence '+fmtD(x.g.due)+'</small><span class="num">'+esc(grpAll(x.g))+'</span></div><button class="btn sm" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button></div>'}).join('')+'</div>');
 }
-function cobMsg(c,mode){
+function cobMsg(c,mode,due){
   if(mode==='sum')return fillMsg((S.msgS&&S.msgS.trim())?S.msgS:DEFMSGS,{nome:c.name.trim().split(/\s+/)[0],loja:S.shop||'',dias:String(sumDays(c))});
   var hj=ymd(new Date()),leg=0;
   c.buys.forEach(function(b){if(!b.paid&&!b.sid)leg+=bnet(b)});
-  var g=groupParc((c.parc||[]).filter(function(p){return !p.paid}))[0],v={nome:c.name.trim().split(/\s+/)[0],loja:S.shop||''};
+  var g=groupParc((c.parc||[]).filter(function(p){return !p.paid&&(!due||p.due===due)}))[0],v={nome:c.name.trim().split(/\s+/)[0],loja:S.shop||''};
   if(g){v.valor=grpAll(g);v.parcela=grpLbl(g);v.vencimento=fmtD(g.due);v.quando=g.due<hj?'venceu em '+fmtD(g.due):g.due===hj?'vence hoje':g.due===ymd(new Date(Date.now()+864e5))?'vence amanhã ('+fmtD(g.due)+')':'vence em '+fmtD(g.due)}
   else{v.valor=brl(leg>0?leg:owed(c));v.parcela='';v.vencimento='';v.quando='está em aberto'}
   return fillMsg(mode==='lem'?((S.msgL&&S.msgL.trim())?S.msgL:DEFMSGL):((S.msg&&S.msg.trim())?S.msg:DEFMSG),v);
@@ -668,7 +668,7 @@ function cobrarSheet(id,mode){
 function cobList(){
   var hoje=ymd(new Date()),arr=S.clients.map(function(c){return {c:c,o:owed(c)}}).filter(function(x){return x.o>0}).sort(function(a,b){return b.o-a.o});
   if(!arr.length){toast('Ninguém está devendo');return}
-  sheet('Cobrar clientes','<p class="muted" style="margin:0">Quem tem valor a receber. Toque em Cobrar para preparar a mensagem.</p><div class="list">'+arr.map(function(x){var late=(x.c.parc||[]).some(function(p){return !p.paid&&p.due<hoje});return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small class="num">Deve '+brl(x.o)+(late?' · parcela atrasada':'')+'</small></div><button class="btn sm pri" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button></div>'}).join('')+'</div>');
+  sheet('Cobrar clientes','<p class="muted" style="margin:0">Quem tem valor a receber. Toque em Cobrar para um cliente ou use a sequência de hoje.</p>'+dayBtn()+'<div class="list">'+arr.map(function(x){var late=(x.c.parc||[]).some(function(p){return !p.paid&&p.due<hoje});return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small class="num">Deve '+brl(x.o)+(late?' · parcela atrasada':'')+'</small></div><button class="btn sm pri" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button></div>'}).join('')+'</div>');
 }
 function dayData(){
   var hj=ymd(new Date()),ym=hj.slice(0,7),r={today:{sum:0,n:0,by:{}},late:{sum:0,n:0,by:{}},month:{sum:0,n:0,by:{}}};
@@ -690,7 +690,7 @@ function sumSheet(k){
   if(!d.n){toast(k==='today'?'Nada vence hoje':k==='late'?'Nenhuma parcela atrasada':'Nada a receber neste mês');return}
   var arr=Object.keys(d.by).map(function(id){return d.by[id]}).sort(function(a,b){return a.due<b.due?-1:1});
   var ttl=k==='today'?'Vence hoje':k==='late'?'Atrasadas':'A receber em '+new Date().toLocaleDateString('pt-BR',{month:'long'});
-  sheet(ttl,'<div class="totbar"><span>Total</span><span>'+brl(d.sum)+'</span></div><div class="list">'+arr.map(function(x){
+  sheet(ttl,'<div class="totbar"><span>Total</span><span>'+brl(d.sum)+'</span></div>'+(k==='today'?dayBtn():'')+'<div class="list">'+arr.map(function(x){
     var sub=k==='late'?'desde '+fmtD(x.due):k==='today'?'vence hoje':'a partir de '+fmtD(x.due);
     return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small class="num">'+x.n+(x.n>1?' parcelas':' parcela')+' · '+sub+'</small><span class="num">'+brl(x.sum)+'</span></div><button class="btn sm pri" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button></div>'}).join('')+'</div>');
 }
@@ -1395,17 +1395,30 @@ var QC={ids:[],i:0,mode:'cob'};
 function queueShow(){
   var c=client(QC.ids[QC.i]);
   if(!c){closeSheet();toast('Fila concluída! 🎉');return}
-  var m=QC.mode,verb=m==='sum'?'Chamar':m==='lem'?'Lembrar':'Cobrar',last=QC.i>=QC.ids.length-1;
-  var info=m==='sum'?'Última compra há '+sumDays(c)+' dias':m==='lem'?'Parcela chegando':'Deve '+brl(owed(c));
+  var m=(QC.modes&&QC.modes[QC.i])||QC.mode,dayDue=QC.day?(m==='lem'?ymd(new Date(Date.now()+864e5)):m==='late'?undefined:ymd(new Date())):undefined,verb=m==='sum'?'Chamar':m==='lem'?'Lembrar':'Cobrar',last=QC.i>=QC.ids.length-1;
+  var info=m==='sum'?'Última compra há '+sumDays(c)+' dias':QC.day?(m==='lem'?'Parcela vence amanhã (só lembrete)':m==='late'?'Parcela atrasada · deve '+brl(owed(c)):'Parcela vence hoje'):m==='lem'?'Parcela chegando':'Deve '+brl(owed(c));
   sheet(verb+' · '+(QC.i+1)+' de '+QC.ids.length,'<p style="margin:0"><b>'+esc(c.name)+'</b><br><small class="muted">'+esc(info)+'</small></p>'
     +'<label class="fld"><span>WhatsApp do cliente</span><input id="cob-phone" type="tel" inputmode="tel" placeholder="(00) 00000-0000" value="'+esc(c.phone)+'"></label>'
     +'<label class="fld"><span>Mensagem (pode editar)</span><textarea class="inp" id="cob-text" style="min-height:200px"></textarea></label>'
     +'<button class="btn pri block" data-act="cobGo" data-id="'+c.id+'">Abrir no WhatsApp</button>'
     +'<button class="btn block" data-act="qNext">'+(last?'Terminar':'Próximo ›')+'</button>'
     +'<p class="muted" style="margin:0">Depois de enviar, volte ao app e toque em '+(last?'Terminar':'Próximo')+'.</p>');
-  $('#cob-text').value=cobMsg(c,m==='cob'?undefined:m);
+  $('#cob-text').value=cobMsg(c,(m==='cob'||m==='late')?undefined:m,dayDue);
 }
-A.qStart=function(el){QC={ids:(el.dataset.ids||'').split(',').filter(Boolean),i:0,mode:el.dataset.mode||'cob'};if(!QC.ids.length)return;queueShow()};
+function dayQueue(){
+  var hj=ymd(new Date()),tm=ymd(new Date(Date.now()+864e5)),cob=[],late=[],lem=[];
+  S.clients.forEach(function(c){var ps=(c.parc||[]).filter(function(p){return !p.paid&&pend(p)>0}),old='';
+    ps.forEach(function(p){if(p.due<hj&&(!old||p.due<old))old=p.due});
+    if(old)late.push({id:c.id,d:old});else if(ps.some(function(p){return p.due===hj}))cob.push(c.id);else if(ps.some(function(p){return p.due===tm}))lem.push(c.id)});
+  late.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0});
+  var lt=late.map(function(x){return x.id});
+  return {ids:cob.concat(lt,lem),modes:cob.map(function(){return 'cob'}).concat(lt.map(function(){return 'late'}),lem.map(function(){return 'lem'})),nc:cob.length,na:lt.length,nl:lem.length};
+}
+function dayBtn(){var q=dayQueue();if(!q.ids.length)return '<p class="muted" style="margin:0">Nada vence hoje, amanhã nem está atrasado.</p>';
+  var t=[];if(q.nc)t.push('hoje ('+q.nc+')');if(q.na)t.push('atrasadas ('+q.na+')');
+  var lb=(t.length?'Cobrar '+t.join(' e '):'')+(q.nl?(t.length?' · ':'')+'lembrar amanhã ('+q.nl+')':'');
+  return '<button class="btn pri block" data-act="qStart" data-day="1" data-modes="'+q.modes.join(',')+'" data-ids="'+q.ids.join(',')+'">'+lb+'</button><p class="muted" style="margin:0">A fila vai de quem vence hoje, depois as atrasadas, e por último o lembrete de quem vence amanhã. Quem tem parcela atrasada recebe a cobrança da mais antiga.</p>'}
+A.qStart=function(el){QC={ids:(el.dataset.ids||'').split(',').filter(Boolean),i:0,mode:el.dataset.mode||'cob',day:!!el.dataset.day,modes:el.dataset.modes?el.dataset.modes.split(','):null};if(!QC.ids.length)return;queueShow()};
 A.qNext=function(){QC.i++;queueShow()};
 
 var DEFMSGS='Oi, {nome}! Tudo bem? 💛\n\nFaz um tempinho que a gente não se fala e fiquei com saudade! Chegaram novidades na {loja} e lembrei de você. Quer ver? Me chama que eu te mando as fotos! 🌷';
