@@ -1836,11 +1836,6 @@ function start(){
   initDownloads();
   load().then(function(){applyTheme();try{render()}catch(e){showErr(e.message)}}).catch(function(){});
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
-})();
-
-
-try{if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}catch(e){}
 
 /* ===== Marcar como paga (aba Cobrar) ===== */
 A.marcaPaga=function(el){
@@ -1895,6 +1890,13 @@ A.gsGo=function(el){
     var a=h.querySelector('.acts');if(!a){a=document.createElement('div');a.className='acts';h.appendChild(a)}
     a.insertAdjacentHTML('afterbegin','<button class="btn" data-act="gsOpen" aria-label="Buscar em tudo">🔍</button>')};
 })();
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+
+
+try{if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}catch(e){}
+
 </script>
 
 </body></html>
