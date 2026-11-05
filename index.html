@@ -383,6 +383,16 @@ var cpById=function(id){return (S.coupons||[]).find(function(c){return c.id===id
 var cpLabel=function(c){return c.type==='pct'?c.val+'% de desconto':brl(c.val)+' de desconto'};
 function cpPrice(price,cp){if(!cp)return price;var v=cp.type==='pct'?price*(1-cp.val/100):price-cp.val;return Math.max(0,Math.round(v*100)/100)}
 function pend(p){return p.paid?0:Math.max(0,Math.round((p.val-(p.pa||0))*100)/100)}
+var MULTA_PCT=2,JURO_DIA_PCT=0.3325;
+function lateInfo(p){
+  var b=pend(p),hj=ymd(new Date());
+  if(p.paid||b<=0||!(p.due<hj))return {base:b,multa:0,juros:0,dias:0,total:b,late:false};
+  var a=p.due.split('-'),dias=Math.max(1,Math.floor((Date.now()-new Date(+a[0],+a[1]-1,+a[2]).getTime())/864e5));
+  var multa=Math.round(b*MULTA_PCT)/100,juros=Math.round(b*JURO_DIA_PCT*dias)/100;
+  return {base:b,multa:multa,juros:juros,dias:dias,total:Math.round((b+multa+juros)*100)/100,late:true};
+}
+function grpLate(g){var o={base:0,multa:0,juros:0,total:0,late:false};g.ps.forEach(function(p){var x=lateInfo(p);o.base+=x.base;o.multa+=x.multa;o.juros+=x.juros;o.total+=x.total;if(x.late)o.late=true});['base','multa','juros','total'].forEach(function(k){o[k]=Math.round(o[k]*100)/100});return o}
+function owedFee(c){var s=0;c.buys.forEach(function(b){if(!b.paid&&!b.sid)s+=bnet(b)});(c.parc||[]).forEach(function(p){s+=lateInfo(p).total});return Math.round(s*100)/100}
 function groupParc(arr){var m={},o=[];arr.slice().sort(function(a,b){return a.due<b.due?-1:a.due>b.due?1:a.i-b.i}).forEach(function(p){var k=p.due+(p.paid?'1':'0');if(!m[k]){m[k]={due:p.due,paid:!!p.paid,ps:[],sum:0};o.push(m[k])}m[k].ps.push(p);m[k].sum+=p.paid?p.val:pend(p)});o.forEach(function(g){g.sum=Math.round(g.sum*100)/100});return o}
 var grpTitle=function(g){return g.ps.map(function(p){return brl(p.paid?p.val:pend(p))}).join(' + ')};
 var grpPartial=function(g){return g.ps.filter(function(p){return !p.paid&&p.pa>0}).map(function(p){return 'já pagou '+brl(p.pa)+' de '+brl(p.val)}).join('; ')};
@@ -666,7 +676,7 @@ function cobMsg(c,mode,due){
   var hj=ymd(new Date()),leg=0;
   c.buys.forEach(function(b){if(!b.paid&&!b.sid)leg+=bnet(b)});
   var g=groupParc((c.parc||[]).filter(function(p){return !p.paid&&(!due||p.due===due)}))[0],v={nome:c.name.trim().split(/\s+/)[0],loja:S.shop||''};
-  if(g){v.valor=grpAll(g);v.parcela=grpLbl(g);v.vencimento=fmtD(g.due);v.quando=g.due<hj?'venceu em '+fmtD(g.due):g.due===hj?'vence hoje':g.due===ymd(new Date(Date.now()+864e5))?'vence amanhã ('+fmtD(g.due)+')':'vence em '+fmtD(g.due)}
+  if(g){v.valor=grpAll(g);var gl=grpLate(g);if(gl.late)v.valor+=' (com multa de 2% e juros de 0,3325% ao dia: '+brl(gl.total)+')';v.parcela=grpLbl(g);v.vencimento=fmtD(g.due);v.quando=g.due<hj?'venceu em '+fmtD(g.due):g.due===hj?'vence hoje':g.due===ymd(new Date(Date.now()+864e5))?'vence amanhã ('+fmtD(g.due)+')':'vence em '+fmtD(g.due)}
   else{v.valor=brl(leg>0?leg:owed(c));v.parcela='';v.vencimento='';v.quando='está em aberto'}
   return fillMsg(mode==='lem'?((S.msgL&&S.msgL.trim())?S.msgL:DEFMSGL):((S.msg&&S.msg.trim())?S.msg:DEFMSG),v);
 }
@@ -676,9 +686,9 @@ function cobrarSheet(id,mode){
   $('#cob-text').value=cobMsg(c,mode);
 }
 function cobList(){
-  var hoje=ymd(new Date()),arr=S.clients.map(function(c){return {c:c,o:owed(c)}}).filter(function(x){return x.o>0}).sort(function(a,b){return b.o-a.o});
+  var hoje=ymd(new Date()),arr=S.clients.map(function(c){return {c:c,o:owed(c),f:owedFee(c)}}).filter(function(x){return x.o>0}).sort(function(a,b){return b.o-a.o});
   if(!arr.length){toast('Ninguém está devendo');return}
-  sheet('Cobrar clientes','<p class="muted" style="margin:0">Quem tem valor a receber. Toque em Cobrar para um cliente ou use a sequência de hoje.</p>'+dayBtn()+'<div class="list">'+arr.map(function(x){var late=(x.c.parc||[]).some(function(p){return !p.paid&&p.due<hoje});return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small class="num">Deve '+brl(x.o)+(late?' · parcela atrasada':'')+'</small></div><button class="btn sm pri" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button></div>'}).join('')+'</div>');
+  sheet('Cobrar clientes','<p class="muted" style="margin:0">Quem tem valor a receber. Toque em Cobrar para um cliente ou use a sequência de hoje.</p>'+dayBtn()+'<div class="list">'+arr.map(function(x){var late=(x.c.parc||[]).some(function(p){return !p.paid&&p.due<hoje});return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small class="num">Deve '+brl(x.o)+(late?' · parcela atrasada':'')+'</small>'+(x.f>x.o?'<small class="num" style="color:var(--warn)">Com multa e juros: '+brl(x.f)+'</small>':'')+'</div><div class="acts"><button class="btn sm" data-act="marcaPaga" data-id="'+x.c.id+'">Marcar como paga</button><button class="btn sm pri" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button></div></div>'}).join('')+'</div>');
 }
 function dayData(){
   var hj=ymd(new Date()),ym=hj.slice(0,7),r={today:{sum:0,n:0,by:{}},late:{sum:0,n:0,by:{}},month:{sum:0,n:0,by:{}}};
@@ -728,7 +738,7 @@ function vClient(){
     +'<div class="seg"><button class="'+(T.ctab==='buys'?'on':'')+'" data-act="ctab" data-v="buys">Compras ('+c.buys.length+')</button><button class="'+(T.ctab==='cm'?'on':'')+'" data-act="ctab" data-v="cm">Comentários ('+c.comments.length+')</button><button class="'+(T.ctab==='mo'?'on':'')+'" data-act="ctab" data-v="mo">Meses</button></div>';
   if(T.ctab==='mo'){h+=cliMonths(c)}else if(T.ctab==='buys'){
     h+='<button class="btn block" data-act="newBuy" style="margin-bottom:6px">+ Adicionar compra</button>'+(c.buys.length?'<button class="btn block" data-act="extrato" style="margin-bottom:6px">Extrato do cliente</button>':'')+'';
-    if((c.parc||[]).length){var hj=ymd(new Date());h+='<div class="day">Parcelas</div><small class="muted" style="display:block;margin:-2px 0 8px">Toque numa parcela para mudar o valor, a data ou registrar um pagamento parcial.</small><div class="list">'+groupParc(c.parc).map(function(g){return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto" data-act="editPar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'" role="button" tabindex="0"><div class="mid"><b class="num">'+esc(grpTitle(g))+'</b>'+(g.ps.length>1?'<span class="num">Total '+brl(g.sum)+'</span>':'')+'<small>'+(g.ps.length>1?'Parcelas ':'Parcela ')+grpLbl(g)+' · vence '+fmtD(g.due)+(!g.paid&&g.due<hj?' · atrasada':'')+'</small>'+(grpPartial(g)?'<small class="num" style="color:var(--ok)">'+esc(grpPartial(g))+'</small>':'')+'</div><button class="chip '+(g.paid?'ok':'warn')+'" style="border:0;min-height:34px;padding:4px 12px" data-act="togglePar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">'+(g.paid?'Paga'+fpTxt(g.ps[0]):'A receber')+'</button></div>'}).join('')+'</div>'}
+    if((c.parc||[]).length){var hj=ymd(new Date());h+='<div class="day">Parcelas</div><small class="muted" style="display:block;margin:-2px 0 8px">Toque numa parcela para mudar o valor, a data ou registrar um pagamento parcial.</small><div class="list">'+groupParc(c.parc).map(function(g){return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto" data-act="editPar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'" role="button" tabindex="0"><div class="mid"><b class="num">'+esc(grpTitle(g))+'</b>'+(g.ps.length>1?'<span class="num">Total '+brl(g.sum)+'</span>':'')+'<small>'+(g.ps.length>1?'Parcelas ':'Parcela ')+grpLbl(g)+' · vence '+fmtD(g.due)+(!g.paid&&g.due<hj?' · atrasada':'')+'</small>'+(!g.paid&&grpLate(g).late?'<small class="num" style="color:var(--warn)">Com multa 2% + juros 0,3325%/dia: '+brl(grpLate(g).total)+'</small>':'')+(grpPartial(g)?'<small class="num" style="color:var(--ok)">'+esc(grpPartial(g))+'</small>':'')+'</div><button class="chip '+(g.paid?'ok':'warn')+'" style="border:0;min-height:34px;padding:4px 12px" data-act="togglePar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">'+(g.paid?'Paga'+fpTxt(g.ps[0]):'A receber')+'</button></div>'}).join('')+'</div>'}
     if(!c.buys.length)h+='<div class="empty" style="margin-top:12px"><h3>Nenhuma compra</h3><p>As vendas feitas na Pronta entrega aparecem aqui. Você também pode adicionar uma compra manualmente.</p></div>';
     else{
       var days={},order=[];T.seen={};
@@ -799,7 +809,7 @@ function clientForm(id){
 function buyForm(){
   if(!S.products.length){toast('Cadastre um produto primeiro');return}
   sheet('Adicionar compra',
-    '<label class="fld"><span>Produto</span><select id="bf-prod" data-on="bfProd">'+S.products.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>'}).join('')+'</select></label>'
+    '<label class="fld"><span>Produto</span><input class="inp" id="bf-q" data-on="bfQ" type="search" placeholder="Pesquisar produto" autocomplete="off" style="margin-bottom:6px"><select id="bf-prod" data-on="bfProd">'+S.products.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>'}).join('')+'</select></label>'
     +'<div id="bf-var"></div>'
     +'<div class="two-f"><label class="fld"><span>Quantidade</span><input id="bf-qty" data-on="bfCp" type="number" inputmode="numeric" min="1" value="1"></label><label class="fld"><span>Preço un. (R$)</span><input id="bf-price" data-on="bfCp" type="text" inputmode="decimal"></label></div>'
     +(S.coupons.length?'<label class="fld"><span>Cupom (opcional)</span><select id="bf-cp" data-on="bfCp">'+cpOpts('')+'</select></label>':'')
@@ -1186,6 +1196,12 @@ var H={
   peIn:function(){var v=parseNum(($('#pe-val')||{}).value),a=parseNum(($('#pe-pa')||{}).value),e=$('#pe-rest');if(e)e.textContent=a>=v&&v>0?'Parcela paga por inteiro.':'Falta '+brl(Math.max(0,v-a))+'.'},
   saQ:function(el){SAQ=el.value;drawSa()},
   bfProd:bfVars,
+  bfQ:function(el){
+    var n=norm(el.value),sel=$('#bf-prod'),cur=sel.value;
+    var arr=S.products.filter(function(p){return !n||norm(p.name).indexOf(n)>-1||norm(p.catg||'').indexOf(n)>-1});
+    sel.innerHTML=arr.length?arr.map(function(p){return '<option value="'+p.id+'"'+(p.id===cur?' selected':'')+'>'+esc(p.name)+'</option>'}).join(''):'<option value="">Nenhum produto encontrado</option>';
+    if(arr.length)bfVars();
+  },
   beQty:function(){var c=cpById(($('#be-cp')||{}).value),q=parseInt(($('#be-qty')||{}).value,10)||0,pr=parseNum(($('#be-price')||{}).value)||0;if(c){var d=$('#be-disc');if(d)d.value=fmtNum(cpDiscVal(q*pr,c))}H.beIn()},
   beCp:function(el){var q=parseInt(($('#be-qty')||{}).value,10)||0,pr=parseNum(($('#be-price')||{}).value)||0,c=cpById(el.value),d=$('#be-disc');if(d)d.value=c?fmtNum(cpDiscVal(q*pr,c)):'';H.beIn()},
   beIn:function(){var q=parseInt(($('#be-qty')||{}).value,10)||0,pr=parseNum(($('#be-price')||{}).value)||0,d=Math.max(0,parseNum(($('#be-disc')||{}).value)||0),e=$('#be-total');if(e)e.textContent=brl(Math.max(0,Math.round((q*pr-d)*100)/100))},
@@ -1452,7 +1468,7 @@ A.lateList=function(){
   sheet('Parcelas atrasadas','<div class="totbar"><span>Total atrasado</span><span>'+brl(r2(tot))+'</span></div>'
     +'<button class="btn pri block" data-act="qStart" data-mode="cob" data-ids="'+idsOf(arr)+'">Cobrar todos em sequência ('+arr.length+')</button>'
     +'<p class="muted" style="margin:0">O WhatsApp abre um cliente por vez, já com a mensagem pronta. Depois de enviar, volte ao app e toque em Próximo.</p>'
-    +'<div class="list">'+arr.map(function(x){var d=dueDays(x.first);return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small>Atrasada desde '+fmtD(x.first)+' · há '+d+(d===1?' dia':' dias')+'</small><span class="num">'+brl(x.v)+'</span></div><button class="btn sm pri" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button></div>'}).join('')+'</div>');
+    +'<div class="list">'+arr.map(function(x){var d=dueDays(x.first);return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small>Atrasada desde '+fmtD(x.first)+' · há '+d+(d===1?' dia':' dias')+'</small><span class="num">'+brl(x.v)+'</span><small class="num" style="color:var(--warn)">Com multa e juros: '+brl(owedFee(x.c))+'</small></div><div class="acts"><button class="btn sm" data-act="marcaPaga" data-id="'+x.c.id+'">Marcar como paga</button><button class="btn sm pri" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button></div></div>'}).join('')+'</div>');
 };
 A.sumList=function(){
   var arr=sumData();if(!arr.length){toast('Ninguém sumido por agora 🎉');return}
@@ -1825,6 +1841,60 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
 
 try{if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}catch(e){}
+
+/* ===== Marcar como paga (aba Cobrar) ===== */
+A.marcaPaga=function(el){
+  twoTap(el,function(){
+    var c=client(el.dataset.id);if(!c)return;
+    var abertas=(c.parc||[]).filter(function(p){return !p.paid&&pend(p)>0}),g=groupParc(abertas)[0];
+    if(g){g.ps.forEach(function(p){p.paid=true;p.pa=p.val})}
+    else{c.buys.forEach(function(b){if(!b.sid&&!b.paid)b.paid=true})}
+    save();render();toast('Marcada como paga');
+    var rest=S.clients.some(function(x){return owed(x)>0});
+    if(rest)cobList();else closeSheet();
+  });
+};
+
+/* ===== Busca em todas as abas ===== */
+function gsResults(q){
+  var n=norm(q),out=[];if(!n)return out;
+  function has(){for(var i=0;i<arguments.length;i++){if(arguments[i]&&norm(String(arguments[i])).indexOf(n)>-1)return true}return false}
+  S.products.forEach(function(p){if(has(p.name,p.catg))out.push({k:'Produto',t:p.name,s:brl(p.price)+(p.catg?' · '+p.catg:''),tab:'prod',v:p.name})});
+  var seen={};
+  S.stock.forEach(function(r){var p=prod(r.pid);if(!p)return;if(has(p.name,r.color,r.size,p.catg)){out.push({k:'Pronta entrega',t:p.name,s:r.qty+' em estoque'+(varLabel(r)?' · '+varLabel(r):''),tab:'stock',v:p.name})}});
+  S.clients.forEach(function(c){
+    var hit=has(c.name,c.phone);
+    if(hit)out.push({k:'Cliente',t:c.name,s:(c.phone||'sem telefone')+(owed(c)>0?' · deve '+brl(owed(c)):''),tab:'cli',id:c.id});
+    (c.buys||[]).forEach(function(b){if(has(b.name,b.color,b.size))out.push({k:'Histórico',t:b.name,s:c.name+' · '+b.qty+' × '+brl(b.price),tab:'cli',id:c.id})});
+  });
+  return out.slice(0,60);
+}
+function gsList(){
+  var q=($('#gs-q')||{}).value||'',el=$('#gs-r');if(!el)return;
+  if(!q.trim()){el.innerHTML='<p class="muted" style="margin:0">Digite para buscar em Produtos, Pronta entrega, Clientes e Histórico.</p>';return}
+  var r=gsResults(q);
+  gsList.r=r;
+  el.innerHTML=r.length?'<div class="list">'+r.map(function(x,i){return '<div class="row" data-act="gsGo" data-i="'+i+'" role="button" tabindex="0" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.t)+'</b><small class="num">'+esc(x.s)+'</small></div><span class="chip">'+x.k+'</span></div>'}).join('')+'</div>':'<div class="empty"><h3>Nada encontrado</h3><p>Nenhum resultado em nenhuma aba.</p></div>';
+}
+A.gsOpen=function(){
+  sheet('Buscar em tudo','<input class="search" id="gs-q" data-on="gsQ" type="search" placeholder="Produto, cliente, cor, tamanho, telefone" autocomplete="off"><div id="gs-r"></div>');
+  gsList();setTimeout(function(){var i=$('#gs-q');if(i)i.focus()},60);
+};
+H.gsQ=function(){gsList()};
+A.gsGo=function(el){
+  var x=(gsList.r||[])[+el.dataset.i];if(!x)return;
+  closeSheet();T.tab=x.tab;
+  if(x.tab==='prod')T.q.prod=x.v;
+  else if(x.tab==='stock')T.q.stock=x.v;
+  else if(x.tab==='cli'){T.client=x.id}
+  render();
+};
+(function(){
+  var _r=render;
+  render=function(){_r.apply(this,arguments);var h=$('#hd');if(!h||h.querySelector('[data-act="gsOpen"]'))return;
+    var a=h.querySelector('.acts');if(!a){a=document.createElement('div');a.className='acts';h.appendChild(a)}
+    a.insertAdjacentHTML('afterbegin','<button class="btn" data-act="gsOpen" aria-label="Buscar em tudo">🔍</button>')};
+})();
 </script>
 
 </body></html>
