@@ -308,14 +308,15 @@ function applyTheme(){
   try{localStorage.setItem('catalogo-tema',p.id)}catch(e){}
   var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',p.a);
 }
-var S={v:1,shop:'',theme:'verde',lastBackup:0,products:[],stock:[],clients:[],coupons:[{id:'cp10',name:'10%',type:'pct',val:10}],msg:'',goals:{},goalDef:0,msgL:'',lemDias:1,promos:{promo:'',novo:'',livre:''},msgS:'',sumDias:60};
+var S={v:1,recFmt:'img',shop:'',theme:'verde',lastBackup:0,products:[],stock:[],clients:[],coupons:[{id:'cp10',name:'10%',type:'pct',val:10}],msg:'',goals:{},goalDef:0,msgL:'',lemDias:1,promos:{promo:'',novo:'',livre:''},msgS:'',sumDias:60};
 var storageOK=true,saveTimer=null;
 function idb(){return new Promise(function(res,rej){try{var r=indexedDB.open('catalogo-pronta-entrega',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}}catch(e){rej(e)}})}
 function idbGet(k){return idb().then(function(db){return new Promise(function(res,rej){var q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=function(){res(q.result)};q.onerror=function(){rej(q.error)}})})}
 function idbSet(k,v){return idb().then(function(db){return new Promise(function(res,rej){var t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=function(){res()};t.onerror=function(){rej(t.error)};t.onabort=function(){rej(t.error)}})})}
+function idbDel(k){return idb().then(function(db){return new Promise(function(res,rej){var t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=function(){res()};t.onerror=function(){rej(t.error)};t.onabort=function(){rej(t.error)}})})}
 function normalize(o){
   o=o&&typeof o==='object'?o:{};
-  return {v:1,shop:String(o.shop||''),theme:PALS.some(function(p){return p.id===o.theme})?o.theme:'verde',lastBackup:Number(o.lastBackup)||0,msg:typeof o.msg==='string'?o.msg:'',goals:(o.goals&&typeof o.goals==='object'&&!Array.isArray(o.goals))?Object.keys(o.goals).reduce(function(a,k){var v=Number(o.goals[k]);if(/^\d{4}-\d{2}$/.test(k)&&isFinite(v)&&v>=0)a[k]=v;return a},{}):{},goalDef:Math.max(0,Number(o.goalDef)||0),msgS:typeof o.msgS==='string'?o.msgS:'',sumDias:(isFinite(Number(o.sumDias))&&Number(o.sumDias)>=7&&Number(o.sumDias)<=730)?Math.round(Number(o.sumDias)):60,msgL:typeof o.msgL==='string'?o.msgL:'',lemDias:(o.lemDias!==undefined&&o.lemDias!==null&&o.lemDias!==''&&isFinite(Number(o.lemDias)))?Math.min(7,Math.max(0,Math.round(Number(o.lemDias)))):1,promos:(function(q){q=q&&typeof q==='object'?q:{};return {promo:typeof q.promo==='string'?q.promo:'',novo:typeof q.novo==='string'?q.novo:'',livre:typeof q.livre==='string'?q.livre:''}})(o.promos),coupons:Array.isArray(o.coupons)?o.coupons.filter(function(c){return c&&c.name}).map(function(c){return {id:c.id||uid(),name:String(c.name),type:c.type==='val'?'val':'pct',val:Number(c.val)||0}}):[{id:uid(),name:'10%',type:'pct',val:10}],
+  return {v:1,ts:Number(o.ts)||0,recFmt:o.recFmt==='txt'?'txt':'img',shop:String(o.shop||''),theme:PALS.some(function(p){return p.id===o.theme})?o.theme:'verde',lastBackup:Number(o.lastBackup)||0,msg:typeof o.msg==='string'?o.msg:'',goals:(o.goals&&typeof o.goals==='object'&&!Array.isArray(o.goals))?Object.keys(o.goals).reduce(function(a,k){var v=Number(o.goals[k]);if(/^\d{4}-\d{2}$/.test(k)&&isFinite(v)&&v>=0)a[k]=v;return a},{}):{},goalDef:Math.max(0,Number(o.goalDef)||0),msgS:typeof o.msgS==='string'?o.msgS:'',sumDias:(isFinite(Number(o.sumDias))&&Number(o.sumDias)>=7&&Number(o.sumDias)<=730)?Math.round(Number(o.sumDias)):60,msgL:typeof o.msgL==='string'?o.msgL:'',lemDias:(o.lemDias!==undefined&&o.lemDias!==null&&o.lemDias!==''&&isFinite(Number(o.lemDias)))?Math.min(7,Math.max(0,Math.round(Number(o.lemDias)))):1,promos:(function(q){q=q&&typeof q==='object'?q:{};return {promo:typeof q.promo==='string'?q.promo:'',novo:typeof q.novo==='string'?q.novo:'',livre:typeof q.livre==='string'?q.livre:''}})(o.promos),coupons:Array.isArray(o.coupons)?o.coupons.filter(function(c){return c&&c.name}).map(function(c){return {id:c.id||uid(),name:String(c.name),type:c.type==='val'?'val':'pct',val:Number(c.val)||0}}):[{id:uid(),name:'10%',type:'pct',val:10}],
     products:(Array.isArray(o.products)?o.products:[]).map(function(p){return {id:p.id||uid(),name:String(p.name||'Sem nome'),price:Number(p.price)||0,photo:p.photo||'',cat:!!p.cat,colors:Array.isArray(p.colors)?p.colors:[],sizes:Array.isArray(p.sizes)?p.sizes:[],catg:String(p.catg||''),kit:Array.isArray(p.kit)?p.kit.filter(function(k){return k&&k.pid}).map(function(k){return {pid:k.pid,qty:Math.max(1,parseInt(k.qty,10)||1)}}):[]}}),
     stock:(Array.isArray(o.stock)?o.stock:[]).map(function(r){return {id:r.id||uid(),pid:r.pid,color:r.color||'',size:r.size||'',qty:Math.max(0,parseInt(r.qty,10)||0)}}),
     clients:(Array.isArray(o.clients)?o.clients:[]).map(function(c){return {id:c.id||uid(),name:String(c.name||'Sem nome'),phone:String(c.phone||''),comments:Array.isArray(c.comments)?c.comments:[],buys:Array.isArray(c.buys)?c.buys:[],parc:Array.isArray(c.parc)?c.parc:[]}})};
@@ -327,6 +328,7 @@ function writeNow(){
   }).then(function(){var b=$('#bn');if(b)b.hidden=storageOK});
 }
 function save(){
+  try{stampPay();S.ts=Date.now();sbSchedule()}catch(e){}
   clearTimeout(saveTimer);
   saveTimer=setTimeout(function(){saveTimer=null;writeNow()},250);
 }
@@ -336,7 +338,7 @@ window.addEventListener('pagehide',flush);
 function load(){
   return idbGet('state').catch(function(){return null}).then(function(v){
     if(!v){try{v=localStorage.getItem('catalogo-state')}catch(e){v=null}}
-    if(v){try{S=normalize(JSON.parse(v))}catch(e){}}
+    if(v){try{S=normalize(JSON.parse(v));legacyStamp()}catch(e){}}
   });
 }
 var dl=null;
@@ -398,7 +400,7 @@ var grpTitle=function(g){return g.ps.map(function(p){return brl(p.paid?p.val:pen
 var grpPartial=function(g){return g.ps.filter(function(p){return !p.paid&&p.pa>0}).map(function(p){return 'já pagou '+brl(p.pa)+' de '+brl(p.val)}).join('; ')};
 var grpLbl=function(g){return g.ps.map(function(p){return p.i+'/'+p.n}).join(' + ')};
 var grpAll=function(g){return g.ps.length>1?grpTitle(g)+' = '+brl(g.sum):brl(g.sum)};
-var DEFMSG='Oi, {nome}! Tudo bem com você? 💛\n\nPassando só pra lembrar, com todo carinho, da sua parcela de {valor}, que {quando}.\n\nSe você já fez o pagamento, me avisa que eu dou baixa por aqui, tá? E se precisar de qualquer coisa, é só me chamar.\n\nUm beijo e obrigada pela confiança! 🌷';
+var DEFMSG='Oi, {nome}! Tudo bem? ✨\n\nPassando para informar que a sua parcela no valor de {valor} {quando}.\n\nPara sua comodidade, o pagamento pode ser realizado via Pix:\n🔑 Chave Pix: (coloque aqui a sua chave)\n\nApós efetuar o pagamento, por favor, envie o comprovante por aqui para realizarmos a baixa no sistema.\n\nSe você já realizou o pagamento ou enviou o comprovante, por favor, desconsidere esta mensagem. Agradecemos a parceria!';
 function fillMsg(t,v){return String(t).replace(/\{(\w+)\}/g,function(m,k){return v[k]!=null?v[k]:m})}
 
 /* ---------- Folhas de ação ---------- */
@@ -555,14 +557,16 @@ function openSell(){
   var lines=[];
   T.sel.forEach(function(id){var r=srow(id),p=r&&prod(r.pid);if(p&&r.qty>0)lines.push({rid:id,qty:1,price:p.price})});
   if(!lines.length){toast('Nada selecionado');return}
-  SL={lines:lines,cid:S.clients.length?S.clients[0].id:'__new',newName:'',paid:true,n:1,eq:true,inst:[],cp:''};
+  SL={lines:lines,cid:S.clients.length?S.clients[0].id:'__new',newName:'',paid:true,n:1,eq:true,inst:[],cp:'',acc:{t:'val',v:0}};
   sheet('Enviar ao cliente',
     '<label class="fld"><span>Cliente</span><select id="sl-cli" data-on="slCli">'+S.clients.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>'}).join('')+'<option value="__new">+ Novo cliente</option></select></label>'
     +'<label class="fld" id="sl-new" '+(SL.cid==='__new'?'':'hidden')+'><span>Nome do novo cliente</span><input id="sl-name" data-on="slName" type="text" autocomplete="off" placeholder="Nome"></label>'
     +'<div class="lbl">Itens</div><div id="sl-lines" class="list"></div>'
     +(S.coupons.length?'<label class="fld"><span>Cupom (opcional)</span><select id="sl-cp" data-on="slCp"><option value="">Sem cupom</option>'+S.coupons.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+' · '+esc(cpLabel(c))+'</option>'}).join('')+'</select></label>':'')
     +'<div class="seg"><button id="sl-p1" class="on" data-act="slPaid" data-v="1">Pago</button><button id="sl-p0" data-act="slPaid" data-v="0">A receber</button></div>'
-    +'<div id="sl-par" class="line" hidden><label class="fld"><span>Parcelas</span><select data-on="slN">'+Array.from({length:10},function(_,i){return '<option value="'+(i+1)+'">'+(i+1)+'x</option>'}).join('')+'</select></label><label class="chk"><input type="checkbox" id="sl-eq" data-on="slEq" checked> Todas as parcelas com o mesmo valor</label><div id="sl-inst" class="list"></div><small id="sl-diff"></small></div><small id="sl-disc"></small><div class="totbar"><span>Total</span><span id="sl-total"></span></div>'
+    +'<div id="sl-par" class="line" hidden><label class="fld"><span>Parcelas</span><select data-on="slN">'+Array.from({length:10},function(_,i){return '<option value="'+(i+1)+'">'+(i+1)+'x</option>'}).join('')+'</select></label>'
+      +'<div class="two-f"><label class="fld"><span>Acréscimo por mês</span><select data-on="slAccT"><option value="val">R$ por mês</option><option value="pct">% por mês</option></select></label><label class="fld"><span>Valor do acréscimo</span><input type="text" inputmode="decimal" placeholder="0,00" data-on="slAccV"></label></div><small class="muted" id="sl-accn"></small>'
+      +'<label class="chk"><input type="checkbox" id="sl-eq" data-on="slEq" checked> Calcular os valores das parcelas automaticamente</label><div id="sl-inst" class="list"></div><small id="sl-diff"></small></div><small id="sl-disc"></small><div class="totbar"><span>Total</span><span id="sl-total"></span></div>'
     +'<button class="btn pri block" data-act="sellGo">Registrar venda</button>');
   drawLines();
 }
@@ -583,10 +587,16 @@ function slDiscCents(){var cp=cpById(SL.cp);if(!cp)return 0;var g=Math.round(slS
 function slNet(){return (Math.round(slSum()*100)-slDiscCents())/100}
 function distDisc(){var D=slDiscCents(),ls=SL.lines.map(function(l){return Math.round(l.qty*l.price*100)}),g=ls.reduce(function(a,b){return a+b},0),out=[],used=0;ls.forEach(function(lc,i){var d=i===ls.length-1?D-used:(g?Math.floor(D*lc/g):0);out.push(d);used+=d});return out}
 function slTotal(){var e=$('#sl-total');if(e)e.textContent=brl(slNet());var dd=$('#sl-disc'),D=slDiscCents(),cp=cpById(SL.cp);if(dd)dd.textContent=D>0?'Desconto do cupom '+cp.name+': −'+brl(D/100)+' (de '+brl(slSum())+')':'';if(!SL.paid){instSplit();drawInst()}}
+function accPlan(cents,n,t,v){
+  var b=Math.floor(cents/n),r=cents-b*n,out=[];v=Number(v)||0;
+  for(var i=0;i<n;i++){var bb=b+(i<r?1:0),x=0;if(v>0)x=t==='pct'?Math.round(bb*i*v/100):Math.round(i*v*100);out.push(bb+x)}
+  return out;
+}
+function accExtra(){var c=Math.round(slNet()*100),pl=accPlan(c,SL.n,SL.acc.t,SL.acc.v);return (pl.reduce(function(a,b){return a+b},0)-c)/100}
 function instSplit(force){
   if(!SL.eq&&!force)return;
-  var c=Math.round(slNet()*100),n=SL.n,b=Math.floor(c/n),r=c-b*n;
-  SL.inst.forEach(function(x,i){x.val=(b+(i<r?1:0))/100});
+  var c=Math.round(slNet()*100),pl=accPlan(c,SL.n,SL.acc.t,SL.acc.v);
+  SL.inst.forEach(function(x,i){x.val=pl[i]/100});
 }
 function instInit(){
   var old=SL.inst,now=new Date();SL.inst=[];
@@ -599,14 +609,14 @@ function drawInst(){
   slDiff();
 }
 function slDiff(){
-  var d=$('#sl-diff');if(!d)return;var sm=0;SL.inst.forEach(function(x){sm+=x.val});var df=Math.round((slNet()-sm)*100)/100;
+  var d=$('#sl-diff');if(!d)return;var sm=0;SL.inst.forEach(function(x){sm+=x.val});var df=Math.round((slNet()+accExtra()-sm)*100)/100;var an=$('#sl-accn');if(an){var ex=accExtra();an.textContent=ex>0?'Acréscimo total: '+brl(ex)+'. Total a receber: '+brl(r2(slNet()+ex))+'.':''}
   d.textContent=df===0?'':(df>0?'Faltam '+brl(df)+' para fechar o total.':'As parcelas passam '+brl(-df)+' do total.');d.style.color='var(--warn)';
 }
 function sellGo(){
   var c;
   if(SL.cid==='__new'){var n=SL.newName.trim();if(!n){toast('Digite o nome do cliente');return}c={id:uid(),name:n,phone:'',comments:[],buys:[]}}
   else{c=client(SL.cid);if(!c){toast('Escolha o cliente');return}}
-  if(!SL.paid){var sm=0;for(var j=0;j<SL.inst.length;j++){if(!SL.inst[j].due){toast('Escolha o vencimento de cada parcela');return}sm+=SL.inst[j].val}if(Math.abs(sm-slNet())>0.011){toast('A soma das parcelas precisa ser igual ao total');return}}
+  if(!SL.paid){var sm=0;for(var j=0;j<SL.inst.length;j++){if(!SL.inst[j].due){toast('Escolha o vencimento de cada parcela');return}sm+=SL.inst[j].val}if(Math.abs(sm-(slNet()+accExtra()))>0.011){toast('A soma das parcelas precisa ser igual ao total');return}}
   var need={};
   SL.lines.forEach(function(l){need[l.rid]=(need[l.rid]||0)+l.qty});
   for(var k in need){var r=srow(k);if(!r||r.qty<need[k]){toast('Quantidade maior que o estoque');return}}
@@ -738,7 +748,7 @@ function vClient(){
     +'<div class="seg"><button class="'+(T.ctab==='buys'?'on':'')+'" data-act="ctab" data-v="buys">Compras ('+c.buys.length+')</button><button class="'+(T.ctab==='cm'?'on':'')+'" data-act="ctab" data-v="cm">Comentários ('+c.comments.length+')</button><button class="'+(T.ctab==='mo'?'on':'')+'" data-act="ctab" data-v="mo">Meses</button></div>';
   if(T.ctab==='mo'){h+=cliMonths(c)}else if(T.ctab==='buys'){
     h+='<button class="btn block" data-act="newBuy" style="margin-bottom:6px">+ Adicionar compra</button>'+(c.buys.length?'<button class="btn block" data-act="extrato" style="margin-bottom:6px">Extrato do cliente</button>':'')+'';
-    if((c.parc||[]).length){var hj=ymd(new Date());h+='<div class="day">Parcelas</div><small class="muted" style="display:block;margin:-2px 0 8px">Toque numa parcela para mudar o valor, a data ou registrar um pagamento parcial.</small><div class="list">'+groupParc(c.parc).map(function(g){return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto" data-act="editPar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'" role="button" tabindex="0"><div class="mid"><b class="num">'+esc(grpTitle(g))+'</b>'+(g.ps.length>1?'<span class="num">Total '+brl(g.sum)+'</span>':'')+'<small>'+(g.ps.length>1?'Parcelas ':'Parcela ')+grpLbl(g)+' · vence '+fmtD(g.due)+(!g.paid&&g.due<hj?' · atrasada':'')+'</small>'+(!g.paid&&grpLate(g).late?'<small class="num" style="color:var(--warn)">Com multa 2% + juros 0,3325%/dia: '+brl(grpLate(g).total)+'</small>':'')+(grpPartial(g)?'<small class="num" style="color:var(--ok)">'+esc(grpPartial(g))+'</small>':'')+'</div><button class="chip '+(g.paid?'ok':'warn')+'" style="border:0;min-height:34px;padding:4px 12px" data-act="togglePar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">'+(g.paid?'Paga'+fpTxt(g.ps[0]):'A receber')+'</button></div>'}).join('')+'</div>'}
+    if((c.parc||[]).length){var hj=ymd(new Date());h+='<div class="day">Parcelas</div><small class="muted" style="display:block;margin:-2px 0 8px">Toque numa parcela para mudar o valor, a data ou registrar um pagamento parcial.</small><div class="list">'+groupParc(c.parc).map(function(g){return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto" data-act="editPar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'" role="button" tabindex="0"><div class="mid"><b class="num">'+esc(grpTitle(g))+'</b>'+(g.ps.length>1?'<span class="num">Total '+brl(g.sum)+'</span>':'')+'<small>'+(g.ps.length>1?'Parcelas ':'Parcela ')+grpLbl(g)+' · vence '+fmtD(g.due)+(!g.paid&&g.due<hj?' · atrasada':'')+'</small>'+(!g.paid&&grpLate(g).late?'<small class="num" style="color:var(--warn)">Com multa 2% + juros 0,3325%/dia: '+brl(grpLate(g).total)+'</small>':'')+(grpPartial(g)?'<small class="num" style="color:var(--ok)">'+esc(grpPartial(g))+'</small>':'')+(recOk(g)?'<button class="link" style="color:var(--accent);justify-self:start" data-act="recibo" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">Recibo</button>':'')+'</div><button class="chip '+(g.paid?'ok':'warn')+'" style="border:0;min-height:34px;padding:4px 12px" data-act="togglePar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">'+(g.paid?'Paga'+fpTxt(g.ps[0]):'A receber')+'</button></div>'}).join('')+'</div>'}
     if(!c.buys.length)h+='<div class="empty" style="margin-top:12px"><h3>Nenhuma compra</h3><p>As vendas feitas na Pronta entrega aparecem aqui. Você também pode adicionar uma compra manualmente.</p></div>';
     else{
       var days={},order=[];T.seen={};
@@ -814,7 +824,7 @@ function buyForm(){
     +'<div class="two-f"><label class="fld"><span>Quantidade</span><input id="bf-qty" data-on="bfCp" type="number" inputmode="numeric" min="1" value="1"></label><label class="fld"><span>Preço un. (R$)</span><input id="bf-price" data-on="bfCp" type="text" inputmode="decimal"></label></div>'
     +(S.coupons.length?'<label class="fld"><span>Cupom (opcional)</span><select id="bf-cp" data-on="bfCp">'+cpOpts('')+'</select></label>':'')
     +'<small id="bf-disc"></small><div class="totbar"><span>Total</span><span id="bf-total">'+brl(0)+'</span></div>'
-    +'<label class="chk"><input type="checkbox" id="bf-paid" data-on="bfPaid" checked> Já foi pago</label><div id="bf-par" class="two-f" hidden><label class="fld"><span>Parcelas</span><select id="bf-n">'+Array.from({length:10},function(_,i){return '<option value="'+(i+1)+'">'+(i+1)+'x</option>'}).join('')+'</select></label><label class="fld"><span>1ª parcela vence</span><input id="bf-due" type="date" value="'+ymd(addMonths(new Date(),1))+'"></label></div>'
+    +'<label class="chk"><input type="checkbox" id="bf-paid" data-on="bfPaid" checked> Já foi pago</label><div id="bf-par" class="two-f" hidden><label class="fld"><span>Parcelas</span><select id="bf-n" data-on="bfCp">'+Array.from({length:10},function(_,i){return '<option value="'+(i+1)+'">'+(i+1)+'x</option>'}).join('')+'</select></label><label class="fld"><span>1ª parcela vence</span><input id="bf-due" type="date" value="'+ymd(addMonths(new Date(),1))+'"></label><label class="fld"><span>Acréscimo por mês</span><select id="bf-at" data-on="bfCp"><option value="val">R$ por mês</option><option value="pct">% por mês</option></select></label><label class="fld"><span>Valor do acréscimo</span><input id="bf-av" data-on="bfCp" type="text" inputmode="decimal" placeholder="0,00"></label></div><small id="bf-accn" class="muted"></small>'
     +'<label class="chk"><input type="checkbox" id="bf-stock"> Descontar do estoque</label>'
     +'<button class="btn pri block" data-act="buyGo">Adicionar compra</button>');
   bfVars();
@@ -832,7 +842,7 @@ function cupomCard(){
   return '<div class="card2"><h3>Cupons</h3><p>Descontos que você aplica na hora de enviar ao cliente.</p><div class="list">'+(S.coupons.length?S.coupons.map(function(c){return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(c.name)+'</b><small>'+esc(cpLabel(c))+'</small></div><button class="link" data-act="cpDel" data-id="'+c.id+'">Remover</button></div>'}).join(''):'<small>Nenhum cupom ainda.</small>')+'</div><button class="btn" data-act="cpNew">+ Novo cupom</button></div>';
 }
 function msgCard(){
-  return '<div class="card2"><h3>Mensagem de cobrança</h3><p>Este texto abre no WhatsApp quando você cobra. Mostra só a próxima parcela pendente. Escreva {nome}, {valor}, {quando}, {parcela} ou {loja} e o app troca pelos dados do cliente.</p><label class="fld"><span>Sua mensagem</span><textarea class="inp" id="msg-t" data-on="msgT" style="min-height:200px">'+esc(S.msg||DEFMSG)+'</textarea></label><div class="lbl">Prévia</div><div class="cm"><p id="msg-pv"></p></div><button class="btn" data-act="msgReset">Voltar à mensagem padrão</button></div>';
+  return '<div class="card2"><h3>Mensagem de cobrança</h3><p>Este texto abre no WhatsApp quando você cobra. Mostra só a próxima parcela pendente. Escreva {nome}, {valor}, {quando}, {parcela} ou {loja} e o app troca pelos dados do cliente. Troque o trecho “(coloque aqui a sua chave)” pela sua chave Pix.</p><label class="fld"><span>Sua mensagem</span><textarea class="inp" id="msg-t" data-on="msgT" style="min-height:200px">'+esc(S.msg||DEFMSG)+'</textarea></label><div class="lbl">Prévia</div><div class="cm"><p id="msg-pv"></p></div><button class="btn" data-act="msgReset">Voltar à mensagem padrão</button></div>';
 }
 function msgPv(){var e=$('#msg-pv');if(e)e.textContent=fillMsg(S.msg&&S.msg.trim()?S.msg:DEFMSG,{nome:'Maria',valor:'R$ 10,00 + R$ 15,00 = R$ 25,00',quando:'vence em 17/11',vencimento:'17/11',parcela:'1/2 + 2/3',loja:S.shop||'minha loja'})}
 function bkOverdue(){
@@ -854,11 +864,11 @@ function themeCard(){
 function vSet(){
   $('#hd').innerHTML='<h1>Ajustes</h1>';
   $('#main').innerHTML='<div class="banner" id="bn" '+(storageOK?'hidden':'')+'>Este navegador não está guardando os dados. Faça um backup agora.</div>'
-    +'<div class="card2"><h3>Sua loja</h3><label class="fld"><span>Nome no catálogo compartilhado</span><input id="shop" data-on="shop" type="text" placeholder="Ex.: Potes da Ana" value="'+esc(S.shop)+'" autocomplete="off"></label></div>'
-    +themeCard()+cupomCard()+msgCard()+lemCard()+sumCard()
+    +sbCard()+'<div class="card2"><h3>Sua loja</h3><label class="fld"><span>Nome no catálogo compartilhado</span><input id="shop" data-on="shop" type="text" placeholder="Ex.: Potes da Ana" value="'+esc(S.shop)+'" autocomplete="off"></label></div>'
+    +themeCard()+cupomCard()+msgCard()+lemCard()+recCard()+sumCard()
     +'<div class="card2"><h3>Backup</h3><p>Os dados ficam neste aparelho. Salve um backup de vez em quando para não perder nada se trocar de celular ou limpar o navegador.</p><p id="bk-info"></p>'
     +'<button class="btn pri" data-act="bkSave">Salvar backup</button><button class="btn" data-act="bkCopy">Ver texto do backup para copiar</button><button class="btn" data-act="bkImport">Restaurar backup</button></div>'
-    +'<div class="card2"><h3>Instalar no iPhone</h3><p>No Safari, toque em Compartilhar e depois em “Adicionar à Tela de Início”. O app abre em tela cheia, como qualquer outro.</p></div>'
+    +lgCard()+'<div class="card2"><h3>Instalar no iPhone</h3><p>No Safari, toque em Compartilhar e depois em “Adicionar à Tela de Início”. O app abre em tela cheia, como qualquer outro.</p></div>'
     +(S.products.length?'':'<div class="card2"><h3>Quer ver como funciona?</h3><p>Carrega três produtos de exemplo com estoque. Dá para apagar depois.</p><button class="btn" data-act="seed">Carregar exemplos</button></div>')+accCard();
   msgPv();msgLPv();msgSPv();bkInfo();
 }
@@ -1031,7 +1041,7 @@ var A={
     var cpo=cpById(($('#bf-cp')||{}).value),dsc=cpDiscVal(qty*price,cpo),nb={id:uid(),t:Date.now(),pid:p.id,name:p.name,color:color,size:size,qty:qty,price:price,paid:paid,sid:sid};
     if(dsc>0){nb.disc=dsc;nb.cup=cpo.name}
     c.buys.push(nb);
-    if(sid){var n=+$('#bf-n').value,cents=Math.round((qty*price-dsc)*100),bs=Math.floor(cents/n),rm=cents-bs*n,dp=$('#bf-due').value.split('-'),d0=new Date(+dp[0],+dp[1]-1,+dp[2]);c.parc=c.parc||[];for(var i=0;i<n;i++)c.parc.push({id:uid(),sid:sid,i:i+1,n:n,due:ymd(addMonths(d0,i)),val:(bs+(i<rm?1:0))/100,paid:false})}
+    if(sid){var n=+$('#bf-n').value,cents=Math.round((qty*price-dsc)*100),bs=Math.floor(cents/n),rm=cents-bs*n,pl=accPlan(cents,n,($('#bf-at')||{}).value,parseNum(($('#bf-av')||{}).value)),dp=$('#bf-due').value.split('-'),d0=new Date(+dp[0],+dp[1]-1,+dp[2]);c.parc=c.parc||[];for(var i=0;i<n;i++)c.parc.push({id:uid(),sid:sid,i:i+1,n:n,due:ymd(addMonths(d0,i)),val:pl[i]/100,paid:false})}
     save();closeSheet();render();toast('Compra adicionada');
   },
   addCm:function(){var t=$('#cm-text').value.trim();if(!t){toast('Escreva o comentário');return}client(T.client).comments.push({id:uid(),t:Date.now(),text:t});save();render();toast('Comentário salvo')},
@@ -1181,7 +1191,7 @@ var A={
   }
 };
 function restore(text){
-  try{var o=JSON.parse(text);if(!o||!Array.isArray(o.products))throw 0;var keepTheme=S.theme;S=normalize(o);if(!o.theme)S.theme=keepTheme;if(!S.lastBackup)S.lastBackup=Date.now();applyTheme();save();closeSheet();T.client=null;render();toast('Backup restaurado')}
+  try{var o=JSON.parse(text);if(!o||!Array.isArray(o.products))throw 0;var keepTheme=S.theme;S=normalize(o);legacyStamp();if(!o.theme)S.theme=keepTheme;if(!S.lastBackup)S.lastBackup=Date.now();applyTheme();save();closeSheet();T.client=null;render();toast('Backup restaurado')}
   catch(e){toast('Esse texto não é um backup válido')}
 }
 
@@ -1205,11 +1215,13 @@ var H={
   beQty:function(){var c=cpById(($('#be-cp')||{}).value),q=parseInt(($('#be-qty')||{}).value,10)||0,pr=parseNum(($('#be-price')||{}).value)||0;if(c){var d=$('#be-disc');if(d)d.value=fmtNum(cpDiscVal(q*pr,c))}H.beIn()},
   beCp:function(el){var q=parseInt(($('#be-qty')||{}).value,10)||0,pr=parseNum(($('#be-price')||{}).value)||0,c=cpById(el.value),d=$('#be-disc');if(d)d.value=c?fmtNum(cpDiscVal(q*pr,c)):'';H.beIn()},
   beIn:function(){var q=parseInt(($('#be-qty')||{}).value,10)||0,pr=parseNum(($('#be-price')||{}).value)||0,d=Math.max(0,parseNum(($('#be-disc')||{}).value)||0),e=$('#be-total');if(e)e.textContent=brl(Math.max(0,Math.round((q*pr-d)*100)/100))},
-  bfCp:function(){var q=Math.max(1,parseInt(($('#bf-qty')||{}).value,10)||1),pr=parseNum(($('#bf-price')||{}).value)||0,c=cpById(($('#bf-cp')||{}).value),g=Math.round(q*pr*100)/100,d=cpDiscVal(g,c),e=$('#bf-disc');if(e)e.textContent=d>0?'Desconto do cupom '+c.name+': −'+brl(d)+' (de '+brl(g)+')':'';var t=$('#bf-total');if(t)t.textContent=brl(Math.round((g-d)*100)/100)},
-  bfPaid:function(el){$('#bf-par').hidden=el.checked},
+  bfCp:function(){var q=Math.max(1,parseInt(($('#bf-qty')||{}).value,10)||1),pr=parseNum(($('#bf-price')||{}).value)||0,c=cpById(($('#bf-cp')||{}).value),g=Math.round(q*pr*100)/100,d=cpDiscVal(g,c),e=$('#bf-disc');if(e)e.textContent=d>0?'Desconto do cupom '+c.name+': −'+brl(d)+' (de '+brl(g)+')':'';var t=$('#bf-total');if(t)t.textContent=brl(Math.round((g-d)*100)/100);bfAccNote(Math.round((g-d)*100))},
+  bfPaid:function(el){$('#bf-par').hidden=el.checked;H.bfCp()},
   slCli:function(el){SL.cid=el.value;$('#sl-new').hidden=el.value!=='__new'},
   slName:function(el){SL.newName=el.value},
   slN:function(el){SL.n=+el.value;instInit();drawInst()},
+  slAccT:function(el){SL.acc.t=el.value;instSplit(true);drawInst()},
+  slAccV:function(el){SL.acc.v=parseNum(el.value);instSplit(true);drawInst()},
   slEq:function(el){SL.eq=el.checked;if(SL.eq)instSplit(true);drawInst()},
   slDue:function(el){SL.inst[+el.dataset.i].due=el.value},
   slVal:function(el){SL.inst[+el.dataset.i].val=parseNum(el.value);slDiff()},
@@ -1422,10 +1434,10 @@ A.dvReset=function(){S.promos[DV.tipo]='';save();$('#dv-t').value=dvTpl();dvPv()
 A.dvGo=function(){window.open('https://wa.me/?text='+encodeURIComponent(dvText()),'_blank')};
 A.dvCopy=function(){var t=dvText();(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){toast('Texto copiado')}).catch(function(){var ta=$('#dv-t');ta.value=t;ta.select();toast('Texto selecionado. Toque em Copiar.')})};
 
-var DEFMSGL='Oi, {nome}! Tudo bem? 💛\n\nPassando só pra te avisar, com carinho, que a sua parcela de {valor} {quando}.\n\nQualquer coisa é só me chamar! 🌷\n\nBeijos, {loja}';
+var DEFMSGL='Oi, {nome}! Tudo bem? ✨\n\nPassando para lembrar que a sua parcela no valor de {valor} {quando}.\n\nPara sua comodidade, o pagamento pode ser realizado via Pix:\n🔑 Chave Pix: (coloque aqui a sua chave)\n\nApós efetuar o pagamento, por favor, envie o comprovante por aqui para realizarmos a baixa no sistema.\n\nSe você já realizou o pagamento ou enviou o comprovante, por favor, desconsidere esta mensagem. Agradecemos a parceria!';
 function lemCard(){
   var o='';for(var i=0;i<=7;i++)o+='<option value="'+i+'"'+((S.lemDias||0)===i?' selected':'')+'>'+(i===0?'Só no dia do vencimento':i===1?'1 dia':i+' dias')+'</option>';
-  return '<div class="card2"><h3>Mensagem de lembrete</h3><p>Aviso carinhoso antes da parcela vencer. Na aba Avisos o app mostra quem tem parcela chegando e deixa esta mensagem pronta para enviar com um toque. Use {nome}, {valor}, {quando}, {parcela} ou {loja}.</p>'
+  return '<div class="card2"><h3>Mensagem de lembrete</h3><p>Aviso carinhoso antes da parcela vencer. Na aba Avisos o app mostra quem tem parcela chegando e deixa esta mensagem pronta para enviar com um toque. Use {nome}, {valor}, {quando}, {parcela} ou {loja}. Troque o trecho “(coloque aqui a sua chave)” pela sua chave Pix.</p>'
     +'<label class="fld"><span>Lembrar parcelas que vencem em até</span><select data-on="lemDias">'+o+'</select></label>'
     +'<label class="fld"><span>Sua mensagem</span><textarea class="inp" id="msgl-t" data-on="msgLT" style="min-height:170px">'+esc(S.msgL||DEFMSGL)+'</textarea></label><div class="lbl">Prévia</div><div class="cm"><p id="msgl-pv"></p></div><button class="btn" data-act="msgLReset">Voltar à mensagem padrão</button></div>';
 }
@@ -1712,8 +1724,9 @@ function accHash(email,pass){
   return Promise.resolve('b64:'+btoa(unescape(encodeURIComponent(txt))));
 }
 /* Chaves de funções: LOGIN_ON=false desativa a conta/login/planos; SHARED_ON=false esconde o plano Compartilhado. */
-var LOGIN_ON=false,SHARED_ON=false;
+var LOGIN_ON=false,SHARED_ON=false,SUPA_ON=false;
 function accStatus(){
+  if(SUPA_ON)return (SB&&SB.sess)?'ok':'auth';
   if(!LOGIN_ON)return 'ok';
   if(!ACC||!SESS)return 'auth';
   if(!ACC.exp)return 'plans';
@@ -1728,6 +1741,7 @@ function accApply(code){
   ACC.code=k;ACC.plan='solo';ACC.exp=Date.now()+c.ms;ACC.warn=c.warn||0;accSave();return c;
 }
 function viewAuth(){
+  if(SUPA_ON)return viewAuthSB();
   var cr=G.mode==='create';
   return '<div class="gw"><div class="gtop"><span class="gbrand">Catálogo</span></div>'
     +'<h1 class="gh">'+(cr?'Crie sua conta':'Entre na sua conta')+'</h1>'
@@ -1825,7 +1839,7 @@ document.addEventListener('keydown',function(e){
   var box=e.target.closest('.sheet,#gate'),b=box&&box.querySelector('[data-enter]');if(b&&e.target.type!=='checkbox'){e.preventDefault();b.click()}
 });
 function gateInit(){
-  accLoad();G.mode=ACC?'login':'create';G.email=ACC?ACC.email:'';gateRender();
+  accLoad();sbLoad();G.mode=ACC?'login':'create';G.email=ACC?ACC.email:'';gateRender();
   setInterval(gateTick,5000);
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')gateTick()});
 }
@@ -1834,7 +1848,7 @@ function start(){
   gateInit();
   try{render()}catch(e){showErr(e.message)}
   initDownloads();
-  load().then(function(){applyTheme();try{render()}catch(e){showErr(e.message)}}).catch(function(){});
+  load().then(function(){applyTheme();try{render()}catch(e){showErr(e.message)}sbBoot();lgCheck()}).catch(function(){});
 }
 
 /* ===== Marcar como paga (aba Cobrar) ===== */
@@ -1890,6 +1904,553 @@ A.gsGo=function(el){
     var a=h.querySelector('.acts');if(!a){a=document.createElement('div');a.className='acts';h.appendChild(a)}
     a.insertAdjacentHTML('afterbegin','<button class="btn" data-act="gsOpen" aria-label="Buscar em tudo">🔍</button>')};
 })();
+
+
+/* ===== Acréscimo mensal (compra manual) ===== */
+function bfAccNote(cents){
+  var e=$('#bf-accn');if(!e)return;var pc=$('#bf-paid');
+  if(!pc||pc.checked){e.textContent='';return}
+  var n=+(($('#bf-n')||{}).value)||1,pl=accPlan(cents,n,($('#bf-at')||{}).value,parseNum(($('#bf-av')||{}).value)),ex=(pl.reduce(function(a,b){return a+b},0)-cents)/100;
+  e.textContent=ex>0?'Acréscimo total: '+brl(ex)+'. Total a receber: '+brl(r2(cents/100+ex))+'.':'';
+}
+
+/* ===== Data do pagamento (para o recibo) ===== */
+function sigOf(p){return (p.paid?1:0)+'|'+(p.pa||0)}
+function legacyStamp(){S.clients.forEach(function(c){(c.parc||[]).forEach(function(p){if(p.sig===undefined)p.sig=sigOf(p)})})}
+function stampPay(){
+  S.clients.forEach(function(c){(c.parc||[]).forEach(function(p){
+    var prev=p.sig===undefined?'0|0':p.sig,cur=sigOf(p);
+    if(prev!==cur){if(cur==='0|0')delete p.pdt;else p.pdt=Date.now();p.sig=cur}
+    else if(p.sig===undefined)p.sig=cur;
+  })});
+}
+
+/* ===== Recibo da parcela paga ===== */
+function recOk(g){return g.paid||g.ps.some(function(p){return p.pa>0})}
+function recCard(){
+  var im=S.recFmt!=='txt';
+  return '<div class="card2"><h3>Recibo da parcela paga</h3><p>Em cada parcela paga (ou com pagamento parcial) aparece o botão Recibo, na página do cliente. Escolha como ele sai:</p>'
+    +'<div class="seg"><button class="'+(im?'on':'')+'" data-act="recFmt" data-v="img">Imagem</button><button class="'+(im?'':'on')+'" data-act="recFmt" data-v="txt">Mensagem de texto</button></div>'
+    +'<small class="muted">A imagem usa a cor do tema e o nome da sua loja. A mensagem de texto pode ser editada antes de enviar.</small></div>';
+}
+A.recFmt=function(el){S.recFmt=el.dataset.v==='txt'?'txt':'img';save();render();toast(S.recFmt==='txt'?'Recibo em mensagem de texto':'Recibo em imagem')};
+function recData(c,ids){
+  var ps=(c.parc||[]).filter(function(p){return ids.indexOf(p.id)>-1});if(!ps.length)return null;
+  var rows=[],paid=0,fp={},names={},sids={},dt=0,part=false;
+  ps.forEach(function(p){
+    var v=p.paid?p.val:(p.pa||0);paid+=v;if(!p.paid)part=true;
+    rows.push({l:p.i+'/'+p.n,v:r2(v),due:p.due,part:!p.paid,rest:pend(p)});
+    if(p.fp)fp[p.fp]=1;sids[p.sid]=1;if(p.pdt&&p.pdt>dt)dt=p.pdt;
+  });
+  c.buys.forEach(function(b){if(b.sid&&sids[b.sid])names[b.name]=1});
+  var rem=0;(c.parc||[]).forEach(function(p){if(sids[p.sid])rem+=pend(p)});
+  return {c:c,rows:rows,paid:r2(paid),fp:Object.keys(fp).join(', '),prods:Object.keys(names),rem:r2(rem),dt:dt,part:part};
+}
+function recText(d){
+  var L=['*RECIBO DE PAGAMENTO*'];if(S.shop)L.push(S.shop);
+  L.push('','Cliente: '+d.c.name);if(d.dt)L.push('Data do pagamento: '+fmtDate(d.dt));
+  L.push(d.rows.length>1?'Parcelas:':'Parcela: '+d.rows[0].l+' (vence '+fmtD(d.rows[0].due)+')');
+  if(d.rows.length>1)d.rows.forEach(function(r){L.push('• '+r.l+' (vence '+fmtD(r.due)+'): '+brl(r.v))});
+  L.push((d.part?'Valor recebido: ':'Valor pago: ')+brl(d.paid));
+  d.rows.forEach(function(r){if(r.part&&r.rest>0)L.push('Falta nesta parcela'+(d.rows.length>1?' ('+r.l+')':'')+': '+brl(r.rest))});
+  if(d.fp)L.push('Forma de pagamento: '+d.fp);
+  if(d.prods.length)L.push('Produtos: '+d.prods.join(', '));
+  L.push(d.rem>0?'Saldo restante da venda: '+brl(d.rem):'Venda quitada.');
+  L.push('','Obrigada pela confiança! 💛');
+  return L.join('\n');
+}
+function recPaint(x,d,W,draw,end){
+  var F='"Bricolage Grotesque","DM Sans",system-ui,sans-serif',B='"DM Sans",system-ui,sans-serif',P=pal(),pad=56,ix=pad+44,iw=W-pad*2-88,top=262,y=top+66;
+  x.textBaseline='alphabetic';x.textAlign='left';
+  if(draw){
+    x.fillStyle=P.bg;x.fillRect(0,0,W,end+170);x.fillStyle=P.a;x.fillRect(0,0,W,230);
+    x.fillStyle='#FFFFFF';x.font='700 58px '+F;x.fillText(ellip(x,S.shop||'Recibo',W-pad*2),pad,104);
+    x.font='500 32px '+B;x.globalAlpha=.88;x.fillText('Recibo de pagamento',pad,160);x.globalAlpha=1;
+    x.fillStyle='#FFFFFF';x.beginPath();x.roundRect(pad,top,W-pad*2,end-top,32);x.fill();
+  }
+  function lab(t){if(draw){x.fillStyle=P.mu;x.font='600 24px '+B;x.fillText(t.toUpperCase(),ix,y)}y+=46}
+  function val(t,max){x.font='600 38px '+B;wrap(x,t,iw,max||3).forEach(function(l){if(draw){x.fillStyle=P.ink;x.fillText(l,ix,y)}y+=48});y+=26}
+  function line(){if(draw){x.fillStyle=P.s2;x.fillRect(ix,y-8,iw,3)}y+=34}
+  lab('Cliente');val(d.c.name,2);
+  if(d.dt){lab('Data do pagamento');val(fmtDate(d.dt),1)}
+  lab(d.rows.length>1?'Parcelas':'Parcela');
+  d.rows.forEach(function(r){
+    if(draw){x.font='500 32px '+B;x.fillStyle=P.ink;x.textAlign='left';x.fillText(r.l+' · vence '+fmtD(r.due),ix,y);x.textAlign='right';x.font='600 32px '+B;x.fillText(brl(r.v),ix+iw,y);x.textAlign='left'}
+    y+=46;
+    if(r.part&&r.rest>0){if(draw){x.font='500 26px '+B;x.fillStyle=P.mu;x.fillText('Falta '+brl(r.rest)+' nesta parcela',ix,y)}y+=40}
+  });
+  y+=14;line();
+  lab(d.part?'Valor recebido':'Valor pago');
+  if(draw){x.fillStyle=P.a;x.font='700 84px '+F;x.fillText(brl(d.paid),ix,y+34)}y+=100;
+  if(d.fp){line();lab('Forma de pagamento');val(d.fp,1)}
+  if(d.prods.length){line();lab('Produtos');val(d.prods.join(', '),3)}
+  line();lab('Saldo restante da venda');val(d.rem>0?brl(d.rem):'Venda quitada',1);
+  var endY=y+8;
+  if(draw){
+    x.textAlign='center';x.fillStyle=P.mu;x.font='600 32px '+B;x.fillText('Obrigada pela confiança!',W/2,end+78);
+    x.font='500 24px '+B;x.fillText('Emitido em '+fmtDate(Date.now()),W/2,end+122);x.textAlign='left';
+  }
+  return endY;
+}
+async function buildReceipt(d){
+  try{await document.fonts.ready}catch(e){}
+  var W=1080,t=document.createElement('canvas');t.width=W;t.height=10;
+  var end=recPaint(t.getContext('2d'),d,W,false,0),cv=document.createElement('canvas');cv.width=W;cv.height=end+170;
+  recPaint(cv.getContext('2d'),d,W,true,end);
+  return cv.toDataURL('image/jpeg',.92);
+}
+var RC=null;
+A.recibo=function(el){
+  var c=client(T.client),ids=(el.dataset.ids||'').split(',').filter(Boolean),d=c&&recData(c,ids);
+  if(!d){toast('Parcela não encontrada');return}
+  RC={d:d,url:''};
+  if(S.recFmt==='txt'){
+    sheet('Recibo','<textarea class="inp" id="rc-t" style="min-height:280px"></textarea><button class="btn pri block" data-act="rcWpp">Enviar no WhatsApp</button><button class="btn block" data-act="rcCopy">Copiar texto</button>');
+    $('#rc-t').value=recText(d);
+  }else{
+    sheet('Recibo','<img class="shareimg" id="rc-img" alt="Recibo da parcela" style="min-height:160px"><button class="btn pri block" data-act="rcShare">Enviar pelo WhatsApp</button><button class="btn block" data-act="rcSave">Salvar imagem</button>');
+    buildReceipt(d).then(function(u){if(!RC||RC.d!==d)return;RC.url=u;var im=$('#rc-img');if(im)im.src=u}).catch(function(){toast('Não foi possível gerar o recibo')});
+  }
+};
+function recPhone(){var c=RC&&RC.d.c,d=String((c&&c.phone)||'').replace(/\D/g,'');if(d.length===10||d.length===11)d='55'+d;return d}
+A.rcWpp=function(){window.open('https://wa.me/'+recPhone()+'?text='+encodeURIComponent($('#rc-t').value),'_blank')};
+A.rcCopy=function(){var e=$('#rc-t'),t=e.value;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){toast('Texto copiado')}).catch(function(){e.select();toast('Selecionado. Copie com o toque longo.')})};
+A.rcShare=function(){
+  if(!RC||!RC.url){toast('O recibo ainda está sendo gerado');return}
+  var f;try{f=new File([dataToBlob(RC.url)],'recibo.jpg',{type:'image/jpeg'})}catch(e){f=null}
+  if(f&&navigator.canShare&&navigator.canShare({files:[f]})){
+    navigator.share({files:[f]}).catch(function(e){if(e&&e.name==='AbortError')return;toast('Não deu para compartilhar. Use Salvar imagem.')});
+  }else{
+    window.open('https://wa.me/'+recPhone(),'_blank');toast('Salve a imagem e anexe na conversa do WhatsApp');
+  }
+};
+A.rcSave=function(){
+  if(!RC||!RC.url){toast('O recibo ainda está sendo gerado');return}
+  var b;try{b=dataToBlob(RC.url)}catch(e){toast('Não foi possível salvar');return}
+  dl.save({filename:'recibo.jpg',data:b}).then(function(){toast('Imagem salva')}).catch(function(e){if(e&&e.code==='declined')return;toast('Segure o dedo sobre a imagem e escolha “Salvar nas Fotos”')});
+};
+
+
+/* ===== Conta e nuvem (Supabase) ===== */
+var SB={url:'https://mliomgkjvifonwfaiimo.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1saW9tZ2tqdmlmb253ZmFpaW1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwMDMzODYsImV4cCI6MjEwOTU3OTM4Nn0.Gw3_9ZIWCocmv74Say0CAVQeLHsiHEUmnSCrZTPfuTkU',sess:null,busy:false,err:'',last:0,timer:null,ask:null};
+function sbLoad(){var j=lsGet('catalogo-supa');try{SB.sess=j?JSON.parse(j):null}catch(e){SB.sess=null}}
+function sbStore(){if(SB.sess)lsSet('catalogo-supa',JSON.stringify(SB.sess));else lsDel('catalogo-supa')}
+function syncMeta(){try{return JSON.parse(lsGet('catalogo-sync')||'{}')||{}}catch(e){return {}}}
+function syncSet(o){lsSet('catalogo-sync',JSON.stringify(o))}
+function sbSet(j){
+  var exp=j.expires_at||Math.floor(Date.now()/1000)+(j.expires_in||3600),old=SB.sess||{};
+  SB.sess={access_token:j.access_token,refresh_token:j.refresh_token||old.refresh_token,expires_at:exp,uid:(j.user&&j.user.id)||old.uid,email:(j.user&&j.user.email)||old.email,ac:j.user?((j.user.user_metadata&&j.user.user_metadata.aceite_versao)||''):(old.ac||'')};
+  sbStore();
+}
+function sbReq(method,path,body,o){
+  o=o||{};
+  var h={apikey:SB.key,'Content-Type':'application/json'},tk=o.token||(SB.sess&&SB.sess.access_token);
+  if(o.auth!==false)h.Authorization='Bearer '+(tk||SB.key);
+  if(o.prefer)h.Prefer=o.prefer;
+  var ctl=window.AbortController?new AbortController():null,tm=setTimeout(function(){if(ctl)ctl.abort()},25000);
+  return fetch(SB.url+path,{method:method,headers:h,body:body==null?undefined:(typeof body==='string'?body:JSON.stringify(body)),signal:ctl?ctl.signal:undefined}).then(function(r){
+    clearTimeout(tm);
+    return r.text().then(function(t){var j=null;try{j=t?JSON.parse(t):null}catch(e){}return {ok:r.ok,status:r.status,j:j}});
+  },function(){clearTimeout(tm);throw {net:true}});
+}
+function sbErr(r){
+  var j=(r&&r.j)||{},c=j.error_code||j.code||'',m=String(j.msg||j.message||j.error_description||'');
+  if(c==='invalid_credentials')return 'E-mail ou senha incorretos';
+  if(c==='email_not_confirmed')return 'Confirme seu e-mail primeiro. Procure o link na caixa de entrada e no spam.';
+  if(c==='user_already_exists'||/already registered/i.test(m))return 'Esse e-mail já tem conta. Toque em Entrar.';
+  if(c==='weak_password')return 'Senha fraca. Use pelo menos 6 caracteres, com letras e números.';
+  if(c==='over_email_send_rate_limit'||c==='over_request_rate_limit'||r.status===429)return 'Muitas tentativas. Espere alguns minutos.';
+  if(c==='same_password')return 'A nova senha precisa ser diferente da atual.';
+  return m||'Algo deu errado (erro '+(r&&r.status)+')';
+}
+function sbNetErr(e){
+  if(e&&e.net)return 'Sem internet. Os dados serão enviados quando a conexão voltar.';
+  if(e&&e.http){var j=e.http.j||{};if(j.code==='PGRST205'||e.http.status===404)return 'A tabela do Supabase ainda não foi criada. Rode o SQL de instalação.';return 'Não deu para sincronizar (erro '+e.http.status+').'}
+  if(e&&e.noauth)return 'Sessão expirada. Entre de novo.';
+  return 'Falha ao sincronizar.';
+}
+function sbFresh(){
+  var s=SB.sess;if(!s)return Promise.reject({noauth:true});
+  if(s.expires_at*1000-Date.now()>60000)return Promise.resolve();
+  return sbReq('POST','/auth/v1/token?grant_type=refresh_token',{refresh_token:s.refresh_token},{auth:false}).then(function(r){
+    if(r.ok&&r.j&&r.j.access_token){sbSet(r.j);return}
+    if(r.status===400||r.status===401||r.status===403){SB.sess=null;sbStore();gateRender();throw {noauth:true}}
+    throw {net:true};
+  });
+}
+function sbHas(o){return !!(o&&((o.products||[]).length||(o.clients||[]).length||(o.stock||[]).length))}
+function sbCounts(o){var p=(o.products||[]).length,c=(o.clients||[]).length;return p+(p===1?' produto':' produtos')+', '+c+(c===1?' cliente':' clientes')}
+function sbReset(){var th=S.theme;S=normalize({theme:th});writeNow()}
+function sbApply(data,rts){
+  try{idbSet('prev-local',JSON.stringify(S))}catch(e){}
+  S=normalize(data);S.ts=rts;legacyStamp();writeNow();syncSet({uid:SB.sess.uid,ts:rts});SB.last=Date.now();applyTheme();T.client=null;render();
+}
+function sbGetRemote(){
+  return sbFresh().then(function(){return sbReq('GET','/rest/v1/catalog_state?select=data,updated_at&user_id=eq.'+encodeURIComponent(SB.sess.uid))}).then(function(r){
+    if(!r.ok)throw {http:r};return (r.j&&r.j[0])||null;
+  });
+}
+function sbPush(){
+  if(!S.ts){S.ts=Date.now();writeNow()}
+  var uid=SB.sess.uid,ts=S.ts,body=JSON.stringify({user_id:uid,data:S,updated_at:new Date(ts).toISOString()});
+  return sbFresh().then(function(){return sbReq('POST','/rest/v1/catalog_state?on_conflict=user_id',body,{prefer:'resolution=merge-duplicates,return=minimal'})}).then(function(r){
+    if(!r.ok)throw {http:r};syncSet({uid:uid,ts:ts});SB.last=Date.now();
+  });
+}
+function sbAsk(rem,rts,mine){
+  SB.ask={rem:rem,rts:rts};
+  sheet(mine?'Os dados mudaram em dois lugares':'Já existem dados na sua conta',
+    '<p class="muted" style="margin:0">'+(mine?'Este aparelho e a nuvem foram alterados desde a última sincronização.':'Este aparelho tem dados e a sua conta na nuvem também.')+' Escolha qual versão manter. A outra será substituída.</p>'
+    +'<div class="card2" style="margin:0"><p style="margin:0"><b>Nuvem:</b> '+esc(sbCounts(rem.data))+'</p><p style="margin:0"><b>Este aparelho:</b> '+esc(sbCounts(S))+'</p></div>'
+    +'<button class="btn pri block" data-act="sbUseCloud">Usar os dados da nuvem</button>'
+    +'<button class="btn block" data-act="sbUseLocal">Usar os dados deste aparelho</button>'
+    +'<small class="muted">Se tiver dúvida, feche esta janela, salve um backup em Ajustes e volte depois.</small>');
+}
+function sbSync(){
+  lgCheck();
+  if(!SB.sess||SB.busy)return Promise.resolve(false);
+  if(SB.ask&&!$('[data-act="sbUseCloud"]'))SB.ask=null;
+  if(SB.ask)return Promise.resolve(false);
+  SB.busy=true;SB.err='';sbStat();
+  var uid=SB.sess.uid;
+  return sbGetRemote().then(function(rem){
+    var meta=syncMeta();
+    if(meta.uid&&meta.uid!==uid){try{idbSet('prev-local',JSON.stringify(S))}catch(e){}sbReset();meta={}}
+    var hasL=sbHas(S),hasR=!!(rem&&sbHas(rem.data)),rts=rem?(Number(rem.data&&rem.data.ts)||Date.parse(rem.updated_at)||1):0,lts=S.ts||0,mine=meta.uid===uid,syn=meta.ts||0;
+    if(!hasL&&hasR){sbApply(rem.data,rts);return}
+    if(hasL&&!hasR)return sbPush();
+    if(!hasL&&!hasR){syncSet({uid:uid,ts:lts});return}
+    if(!mine){sbAsk(rem,rts,false);return}
+    if(rts>syn&&lts>syn){sbAsk(rem,rts,true);return}
+    if(rts>syn){sbApply(rem.data,rts);return}
+    if(lts>syn)return sbPush();
+  }).then(function(){SB.busy=false;SB.err='';sbStat();return true},function(e){SB.busy=false;SB.err=sbNetErr(e);sbStat();return false});
+}
+function sbDirty(){var m=syncMeta();return !!SB.sess&&(m.uid!==SB.sess.uid||(S.ts||0)>(m.ts||0))}
+function sbSchedule(){if(!SUPA_ON||!SB.sess)return;clearTimeout(SB.timer);SB.timer=setTimeout(function(){sbSync()},3000);sbStat()}
+function sbStatTxt(){
+  if(SB.busy)return 'Sincronizando…';if(SB.err)return SB.err;
+  if(sbDirty())return 'Alterações ainda não enviadas à nuvem.';
+  return SB.last?'Salvo na nuvem às '+new Date(SB.last).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'.':'Salvo na nuvem.';
+}
+function sbStat(){var e=document.getElementById('sb-st');if(e)e.textContent=sbStatTxt()}
+function sbCard(){
+  if(!SUPA_ON||!SB.sess)return '';
+  return '<div class="card2"><h3>Minha conta</h3><p>'+esc(SB.sess.email||'')+'</p><p id="sb-st">'+esc(sbStatTxt())+'</p>'
+    +'<button class="btn pri" data-act="sbNow">Sincronizar agora</button><button class="btn" data-act="sbPwd">Trocar senha</button><button class="btn" data-act="sbOut">Sair da conta</button></div>';
+}
+A.sbNow=function(){toast('Sincronizando…');sbSync().then(function(ok){toast(ok?(sbDirty()?'Aguardando você escolher a versão':'Tudo sincronizado'):(SB.err||'Não foi possível sincronizar'))})};
+A.sbUseCloud=function(el){twoTap(el,function(){var a=SB.ask;if(!a)return;SB.ask=null;closeSheet();sbApply(a.rem.data,a.rts);toast('Dados da nuvem carregados')})};
+A.sbUseLocal=function(el){twoTap(el,function(){
+  SB.ask=null;closeSheet();S.ts=Date.now();writeNow();SB.busy=true;sbStat();
+  sbPush().then(function(){SB.busy=false;SB.err='';sbStat();toast('Dados deste aparelho enviados')},function(e){SB.busy=false;SB.err=sbNetErr(e);sbStat();toast(SB.err)});
+})};
+function sbDoOut(){
+  var tk=SB.sess&&SB.sess.access_token;
+  if(tk)sbReq('POST','/auth/v1/logout',null,{token:tk}).catch(function(){});
+  var em=SB.sess?SB.sess.email:'';
+  SB.sess=null;sbStore();syncSet({});SB.err='';SB.ask=null;sbReset();
+  T.client=null;T.tab='prod';G.mode='login';G.email=em;G.msg='';closeSheet();gateRender();render();
+}
+A.sbOut=function(){
+  toast('Enviando seus dados…');
+  var p=sbDirty()?sbSync():Promise.resolve(true);
+  p.then(function(){
+    if(!sbDirty()&&!SB.ask){sbDoOut();return}
+    sheet('Não deu para enviar os dados','<p class="muted" style="margin:0">As últimas alterações ainda não foram para a nuvem. Se sair agora, elas serão apagadas deste aparelho.</p>'
+      +'<button class="btn block" data-act="bkSave">Salvar backup agora</button><button class="btn dng block" data-act="sbOutForce">Sair e apagar os dados deste aparelho</button><button class="btn block" data-act="closeSheet">Cancelar</button>');
+  });
+};
+A.sbOutForce=function(el){twoTap(el,sbDoOut)};
+function pwSheet(title,intro){
+  sheet(title,'<p class="muted" style="margin:0">'+esc(intro)+'</p><label class="fld"><span>Nova senha</span><input id="pw-new" type="password" autocomplete="new-password" placeholder="Pelo menos 6 caracteres"></label><button class="btn pri block" data-act="sbPwGo" data-enter="1">Salvar nova senha</button>');
+  setTimeout(function(){var i=$('#pw-new');if(i)i.focus()},60);
+}
+A.sbPwd=function(){pwSheet('Trocar senha','Digite a nova senha da sua conta.')};
+A.sbPwGo=function(){
+  var v=$('#pw-new').value;if(v.length<6){toast('A senha precisa ter 6 caracteres ou mais');return}
+  sbFresh().then(function(){return sbReq('PUT','/auth/v1/user',{password:v})}).then(function(r){if(r.ok){closeSheet();toast('Senha alterada')}else toast(sbErr(r))},function(){toast('Sem internet. Tente de novo.')});
+};
+function viewAuthSB(){
+  var cr=G.mode==='create';
+  return '<div class="gw"><div class="gtop"><span class="gbrand">Catálogo</span></div>'
+    +'<h1 class="gh">'+(cr?'Crie sua conta':'Entre na sua conta')+'</h1>'
+    +'<div class="gnote">'+esc(G.msg||'Seus dados ficam salvos na nuvem e também no aparelho, então o app funciona sem internet.')+'</div>'
+    +'<div class="seg"><button class="'+(cr?'on':'')+'" data-act="gMode" data-v="create">Criar conta</button><button class="'+(cr?'':'on')+'" data-act="gMode" data-v="login">Entrar</button></div>'
+    +'<label class="fld"><span>E-mail</span><input id="g-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" placeholder="voce@exemplo.com" value="'+esc(G.email)+'"></label>'
+    +'<label class="fld"><span>Senha</span><input id="g-pass" type="password" autocomplete="'+(cr?'new-password':'current-password')+'" placeholder="Pelo menos 6 caracteres"></label>'
+    +(cr?'<label class="chk" style="align-items:flex-start"><input type="checkbox" id="g-agree" data-on="lgAgree" '+(G.agree?'checked':'')+'> <span style="font-size:14px">Li e concordo com os <button type="button" class="link" style="color:var(--accent);text-decoration:underline;font-size:inherit;padding:0" data-act="lgTerms">Termos de Uso</button> e a <button type="button" class="link" style="color:var(--accent);text-decoration:underline;font-size:inherit;padding:0" data-act="lgPriv">Política de Privacidade</button>.</span></label>':'')
+    +'<button class="btn pri block" data-act="sbAuth" data-enter="1">'+(cr?'Criar conta':'Entrar')+'</button>'
+    +'<button class="link" style="color:var(--muted);justify-self:start;text-align:left" data-act="sbForgot">Esqueci minha senha</button>'
+    +(cr?'':'<small class="muted">Ao entrar, você concorda com os <button type="button" class="link" style="color:var(--muted);text-decoration:underline;font-size:inherit;padding:0" data-act="lgTerms">Termos de Uso</button> e a <button type="button" class="link" style="color:var(--muted);text-decoration:underline;font-size:inherit;padding:0" data-act="lgPriv">Política de Privacidade</button>.</small>')+'</div>';
+}
+A.sbAuth=function(){
+  if(G.busy)return;
+  var em=($('#g-email').value||'').trim(),pw=$('#g-pass').value||'',cr=G.mode==='create';G.email=em;
+  if(!/^\S+@\S+\.\S+$/.test(em)){toast('Digite um e-mail válido');return}
+  if(pw.length<6){toast('A senha precisa ter 6 caracteres ou mais');return}
+  var ag=$('#g-agree');if(ag)G.agree=ag.checked;
+  if(cr&&!G.agree){toast('Para criar a conta, aceite os Termos e a Política de Privacidade');return}
+  G.busy=true;
+  var rq=cr?sbReq('POST','/auth/v1/signup',{email:em,password:pw,data:{aceite_versao:LEGAL.versao,aceite_em:new Date().toISOString()}},{auth:false}):sbReq('POST','/auth/v1/token?grant_type=password',{email:em,password:pw},{auth:false});
+  rq.then(function(r){
+    G.busy=false;
+    if(r.ok&&r.j&&r.j.access_token){sbSet(r.j);if(cr&&SB.sess){SB.sess.ac=LEGAL.versao;sbStore()}G.msg='';G.view=null;gateRender();accBanner();render();toast(cr?'Conta criada':'Bem-vinda de volta');sbSync();return}
+    if(r.ok&&cr){G.mode='login';G.msg='Enviamos um link de confirmação para '+em+'. Abra o e-mail, confirme e depois entre aqui.';gateRender();return}
+    toast(sbErr(r));
+  },function(){G.busy=false;toast('Sem internet. Conecte para entrar ou criar a conta.')});
+};
+A.sbForgot=function(){
+  var i=$('#g-email'),em=i?i.value.trim():'';
+  if(!/^\S+@\S+\.\S+$/.test(em)){toast('Digite seu e-mail acima primeiro');return}
+  sbReq('POST','/auth/v1/recover',{email:em},{auth:false}).then(function(r){toast(r.ok?'Se esse e-mail tem conta, enviamos o link para criar uma nova senha':sbErr(r))},function(){toast('Sem internet. Tente de novo.')});
+};
+function sbBoot(){
+  var h=location.hash||'';
+  if(SUPA_ON&&/access_token=|error_code=/.test(h)){
+    var p={};h.replace(/^#/,'').split('&').forEach(function(kv){var a=kv.split('=');try{p[decodeURIComponent(a[0])]=decodeURIComponent((a[1]||'').replace(/\+/g,' '))}catch(e){}});
+    try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+    if(p.error_code||p.error){toast(p.error_code==='otp_expired'?'Esse link expirou. Peça um novo.':(p.error_description||'Link inválido'));return}
+    if(p.access_token&&p.refresh_token){
+      sbReq('GET','/auth/v1/user',null,{token:p.access_token}).then(function(r){
+        if(!r.ok||!r.j){toast('Link inválido ou expirado');return}
+        sbSet({access_token:p.access_token,refresh_token:p.refresh_token,expires_at:+p.expires_at||0,expires_in:+p.expires_in||3600,user:r.j});
+        gateRender();accBanner();render();
+        if(p.type==='recovery')pwSheet('Crie uma nova senha','Você entrou pelo link do e-mail. Escolha a nova senha.');else toast('E-mail confirmado');
+        sbSync();
+      },function(){toast('Sem internet. Abra o link de novo quando conectar.')});
+      return;
+    }
+  }
+  if(SB.sess)sbSync();
+}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&SB.sess)sbSync();else if(document.visibilityState==='hidden'&&SB.sess&&sbDirty())sbSync()});
+window.addEventListener('online',function(){if(SB.sess)sbSync()});
+setInterval(function(){if(SB.sess&&!SB.busy&&sbDirty())sbSync()},45000);
+
+/* ===== LGPD: Termos, Política de Privacidade, exportar e apagar dados ===== */
+/* PREENCHA antes de publicar: nome (ou razão social), CPF/CNPJ e e-mail de contato. Se mudar os textos, mude também "versao" e "data": todo mundo precisará aceitar de novo. */
+var LEGAL={nome:"(NOME COMPLETO OU RAZÃO SOCIAL)",doc:"(CPF OU CNPJ)",email:"(E-MAIL DE CONTATO)",versao:"2026-11-07",data:"7 de novembro de 2026"};
+var LG={busy:false,shown:false};
+function lgT(t){return String(t).replace(/\{nome\}/g,LEGAL.nome).replace(/\{doc\}/g,LEGAL.doc).replace(/\{email\}/g,LEGAL.email)}
+var LG_PRIV=[
+["1. Quem é a responsável",
+ "{nome}, inscrita sob o CPF/CNPJ {doc}, é a responsável pelo aplicativo Catálogo e Pronta Entrega e pelos dados da sua conta (a “controladora”, segundo a Lei Geral de Proteção de Dados, Lei 13.709/2018).",
+ "Para qualquer assunto sobre privacidade, escreva para {email}."],
+["2. Quais dados usamos",
+ "Da sua conta: e-mail e senha. A senha fica protegida pelo serviço de login e nós não conseguimos ver. Também guardamos qual versão destes Termos e desta Política você aceitou e quando.",
+ "Do seu catálogo, o que você mesma cadastra: nome da loja, produtos, fotos, estoque, clientes (nome, telefone e comentários), compras, parcelas, pagamentos, recibos, cupons, metas e mensagens.",
+ "Dados técnicos de acesso, como endereço IP e data e hora, que o serviço de login e de hospedagem registram por segurança.",
+ "Não pedimos sua localização nem acessamos os contatos do seu celular. O app não usa anúncios nem rastreadores de publicidade."],
+["3. Para que usamos e por quê",
+ "Para criar e manter sua conta e guardar e sincronizar o seu catálogo entre o aparelho e a nuvem (execução do contrato, que é o uso do app).",
+ "Para manter o serviço seguro e evitar fraudes e acessos indevidos (legítimo interesse).",
+ "Para cumprir obrigações legais e atender pedidos de autoridades quando exigido por lei.",
+ "Nós não vendemos seus dados e não os usamos para publicidade."],
+["4. Os dados dos seus clientes",
+ "Você cadastra nome e telefone de clientes. Sobre esses dados, é você quem decide o que guardar e para quê. Nós apenas armazenamos e sincronizamos para você, sem usá-los para outra finalidade e sem olhar o seu catálogo no dia a dia.",
+ "Use esses dados só para a venda e a cobrança, guarde o mínimo necessário e atenda o cliente que pedir para corrigir ou apagar o cadastro dele.",
+ "As mensagens de cobrança e de recibo abrem no WhatsApp. Depois que você envia, o tratamento passa a seguir as regras do WhatsApp."],
+["5. Com quem os dados passam",
+ "Com empresas que fazem o serviço funcionar: o Supabase (banco de dados e login) e a hospedagem onde o app fica publicado. Elas só tratam os dados para prestar esse serviço.",
+ "Se um dia o app cobrar planos, o provedor de pagamento receberá os dados necessários para a cobrança. Não guardamos número de cartão.",
+ "Os servidores desses provedores podem ficar fora do Brasil. Nesses casos, a transferência segue o art. 33 da LGPD.",
+ "Também podemos informar dados a autoridades, quando a lei obrigar."],
+["6. Por quanto tempo guardamos",
+ "Enquanto a sua conta existir. Quando você apaga a conta em Ajustes, removemos da nuvem a conta e o catálogo, e os dados deste aparelho são apagados.",
+ "Podemos manter o mínimo que a lei exigir, como registros de pagamento e fiscais, pelo prazo legal.",
+ "O provedor de nuvem pode manter cópias de segurança por um curto período até elas serem substituídas. Backups em arquivo que você salvou ficam com você, e só você pode apagá-los."],
+["7. Seus direitos",
+ "Você pode pedir a confirmação de que tratamos seus dados, acesso, correção, anonimização, bloqueio ou eliminação do que for desnecessário, portabilidade, informação sobre com quem compartilhamos, revogação do consentimento e oposição a um tratamento (art. 18 da LGPD).",
+ "Em Ajustes, em “Privacidade e meus dados”, você baixa tudo e apaga tudo sozinha. Para outros pedidos, escreva para {email}. Respondemos em até 15 dias.",
+ "Se achar que seus direitos não foram respeitados, você pode reclamar à Autoridade Nacional de Proteção de Dados (gov.br/anpd)."],
+["8. Segurança",
+ "A conexão com a nuvem é criptografada, cada conta entra com login próprio e regras no servidor impedem que uma conta veja os dados de outra.",
+ "Nenhum sistema é totalmente seguro. Se houver um incidente que possa causar risco a você, avisaremos você e a ANPD, como manda a lei.",
+ "Ajude: use uma senha forte e só sua, e deixe o celular com bloqueio de tela."],
+["9. Crianças e adolescentes",
+ "O app é para pessoas maiores de 18 anos e não é feito para menores."],
+["10. Mudanças nesta Política",
+ "Se mudarmos este texto, a versão e a data mudam no topo e o app pede que você leia e aceite de novo."]
+];
+var LG_TERMS=[
+["1. O que é o app",
+ "O Catálogo e Pronta Entrega ajuda vendedoras de potes e itens parecidos a organizar produtos, estoque de pronta entrega, clientes, vendas parceladas, cobranças, metas e ranking. Ele funciona no aparelho, com ou sem internet, e sincroniza com a sua conta na nuvem."],
+["2. Sua conta",
+ "Você precisa ter 18 anos ou mais, informar um e-mail seu e guardar a sua senha. Tudo que acontece na conta é de sua responsabilidade. Se achar que alguém entrou nela, troque a senha em Ajustes."],
+["3. Como usar",
+ "Use o app só para fins lícitos. Não tente entrar em contas de outras pessoas, não atrapalhe o funcionamento do serviço e não use o app para enviar mensagens indesejadas.",
+ "Ao cobrar clientes, faça isso com respeito. O Código de Defesa do Consumidor (art. 42) proíbe expor o cliente ao ridículo, constrangê-lo ou ameaçá-lo."],
+["4. Seus dados e seus backups",
+ "Os dados do seu catálogo são seus. O app guarda uma cópia no aparelho e outra na nuvem, mas não dá garantia de que nada se perca. Salve backups de vez em quando.",
+ "Quando o aparelho e a nuvem têm versões diferentes, o app pergunta qual manter. A versão que você não escolher é substituída."],
+["5. Cálculos, mensagens e recibos",
+ "Parcelas, acréscimos, multa, juros, saldos e recibos são ajudas de cálculo. Confira antes de cobrar e combine tudo com o seu cliente. O recibo do app não é nota fiscal nem documento fiscal, e o app não substitui um contador."],
+["6. Planos e pagamento",
+ "No momento o app é liberado sem cobrança. Se passarmos a cobrar, o valor, a forma de pagamento, a renovação e o cancelamento serão informados com clareza antes de você contratar."],
+["7. Disponibilidade",
+ "Nos esforçamos para o app funcionar bem, mas ele pode ter falhas, atualizações e interrupções. Não prometemos funcionamento sem parar."],
+["8. Responsabilidade",
+ "Dentro do que a lei permite, não respondemos por vendas que não aconteceram, lucros que deixaram de entrar ou dados perdidos por falta de backup. Isso não afasta os direitos que a lei de defesa do consumidor garante a você."],
+["9. Encerrar a conta",
+ "Você pode apagar sua conta a qualquer momento em Ajustes. Podemos suspender uma conta que use o app de forma indevida, avisando você sempre que possível."],
+["10. Mudanças nos Termos",
+ "Se mudarmos estes Termos, a versão e a data mudam no topo e o app pede que você aceite de novo para continuar."],
+["11. Lei aplicável e contato",
+ "Valem as leis do Brasil. Se você for consumidora, o foro é o da sua cidade. Dúvidas: {email}."]
+];
+
+var LG_PRIV_L=[
+["1. Quem é a responsável",
+ "{nome}, inscrita sob o CPF/CNPJ {doc}, é a responsável pelo aplicativo Catálogo e Pronta Entrega (a “controladora”, segundo a Lei Geral de Proteção de Dados, Lei 13.709/2018).",
+ "Para qualquer assunto sobre privacidade, escreva para {email}."],
+["2. Quais dados ficam no app",
+ "O app não tem conta nem login. Tudo que você cadastra fica guardado somente neste aparelho: nome da loja, produtos, fotos, estoque, clientes (nome, telefone e comentários), compras, parcelas, pagamentos, recibos, cupons, metas e mensagens.",
+ "Esses dados não são enviados para nós nem para nenhum servidor. Não pedimos sua localização, não acessamos os contatos do seu celular e o app não usa anúncios nem rastreadores de publicidade."],
+["3. Para que servem",
+ "Os dados existem só para o app funcionar para você. Como ficam no seu aparelho, nós não temos acesso a eles e não os usamos para nada."],
+["4. Os dados dos seus clientes",
+ "Você cadastra nome e telefone de clientes. Sobre esses dados, é você quem decide o que guardar e para quê.",
+ "Use esses dados só para a venda e a cobrança, guarde o mínimo necessário e atenda o cliente que pedir para corrigir ou apagar o cadastro dele.",
+ "As mensagens de cobrança e de recibo abrem no WhatsApp. Depois que você envia, o tratamento passa a seguir as regras do WhatsApp."],
+["5. Com quem os dados passam",
+ "Pelo app, com ninguém. A hospedagem onde o app fica publicado pode registrar dados técnicos de acesso quando o app é baixado, como endereço IP e data e hora, mas não recebe o que você cadastra.",
+ "Backups em arquivo que você salvar e enviar para alguém ficam sob o seu controle.",
+ "Se o uso do app for cobrado, o provedor de pagamento receberá os dados necessários para a cobrança. Não guardamos número de cartão."],
+["6. Por quanto tempo ficam",
+ "Enquanto estiverem no aparelho. Você apaga tudo em Ajustes, em “Privacidade e meus dados”, ou ao limpar os dados do navegador ou desinstalar o app.",
+ "Atenção: não existe cópia na nuvem. Se você perder o aparelho ou limpar os dados sem ter um backup, não conseguimos recuperar."],
+["7. Seus direitos",
+ "Como seus dados ficam com você, você exerce os principais direitos sozinha: em Ajustes, baixa tudo e apaga tudo. A LGPD também garante confirmação de tratamento, acesso, correção, portabilidade, informação sobre compartilhamento e oposição (art. 18).",
+ "Para dúvidas ou pedidos, escreva para {email}. Respondemos em até 15 dias. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (gov.br/anpd)."],
+["8. Segurança",
+ "Os dados ficam protegidos pelo próprio aparelho. Deixe o celular com bloqueio de tela e guarde seus backups em lugar seguro, pois quem tiver o arquivo vê tudo o que está nele."],
+["9. Crianças e adolescentes",
+ "O app é para pessoas maiores de 18 anos e não é feito para menores."],
+["10. Mudanças nesta Política",
+ "Se mudarmos este texto, a versão e a data mudam no topo e o app pede que você leia e aceite de novo."]
+];
+var LG_TERMS_L=[
+["1. O que é o app",
+ "O Catálogo e Pronta Entrega ajuda vendedoras de potes e itens parecidos a organizar produtos, estoque de pronta entrega, clientes, vendas parceladas, cobranças, metas e ranking. Ele funciona no aparelho, com ou sem internet."],
+["2. Sem conta, sem nuvem",
+ "O app funciona sem cadastro. Seus dados ficam só neste aparelho. Se você trocar de celular, limpar os dados do navegador ou perder o aparelho, só um backup em arquivo traz tudo de volta."],
+["3. Como usar",
+ "Use o app só para fins lícitos e não o use para enviar mensagens indesejadas.",
+ "Ao cobrar clientes, faça isso com respeito. O Código de Defesa do Consumidor (art. 42) proíbe expor o cliente ao ridículo, constrangê-lo ou ameaçá-lo."],
+["4. Backups",
+ "Salve backups de vez em quando em Ajustes. Não temos cópia dos seus dados e não conseguimos recuperá-los."],
+["5. Cálculos, mensagens e recibos",
+ "Parcelas, acréscimos, multa, juros, saldos e recibos são ajudas de cálculo. Confira antes de cobrar e combine tudo com o seu cliente. O recibo do app não é nota fiscal nem documento fiscal, e o app não substitui um contador."],
+["6. Mensalidade",
+ "O uso do app pode ter mensalidade. O valor, a forma de pagamento e como cancelar serão informados com clareza antes de você contratar."],
+["7. Disponibilidade",
+ "Nos esforçamos para o app funcionar bem, mas ele pode ter falhas e atualizações. Não prometemos funcionamento sem parar."],
+["8. Responsabilidade",
+ "Dentro do que a lei permite, não respondemos por vendas que não aconteceram, lucros que deixaram de entrar ou dados perdidos por falta de backup. Isso não afasta os direitos que a lei de defesa do consumidor garante a você."],
+["9. Encerrar o uso",
+ "Você pode parar de usar o app quando quiser e apagar os dados em Ajustes. Podemos deixar de oferecer o app, avisando com antecedência razoável."],
+["10. Mudanças nos Termos",
+ "Se mudarmos estes Termos, a versão e a data mudam no topo e o app pede que você aceite de novo."],
+["11. Lei aplicável e contato",
+ "Valem as leis do Brasil. Se você for consumidora, o foro é o da sua cidade. Dúvidas: {email}."]
+];
+function lgDoc(title,secs){
+  sheet(title,'<p class="muted" style="margin:0">Versão de '+esc(LEGAL.data)+'</p>'+secs.map(function(x){
+    return '<div class="card2" style="margin:0"><h3>'+esc(lgT(x[0]))+'</h3>'+x.slice(1).map(function(t){return '<p>'+esc(lgT(t))+'</p>'}).join('')+'</div>';
+  }).join('')+'<button class="btn block" data-act="closeSheet">Fechar</button>');
+}
+A.lgPriv=function(){lgDoc('Política de Privacidade',SUPA_ON?LG_PRIV:LG_PRIV_L)};
+A.lgTerms=function(){lgDoc('Termos de Uso',SUPA_ON?LG_TERMS:LG_TERMS_L)};
+H.lgAgree=function(el){G.agree=el.checked};
+
+function lgOk(){return SUPA_ON?!!(SB.sess&&SB.sess.ac===LEGAL.versao):lsGet('catalogo-aceite')===LEGAL.versao}
+function lgCheck(){
+  if(LG.shown||(SUPA_ON&&!SB.sess)||lgOk())return;
+  setTimeout(function(){
+    if(LG.shown||lgOk()||$('#ov'))return;
+    LG.shown=true;
+    sheet('Termos e Privacidade','<p class="muted" style="margin:0">'+(SUPA_ON?'Para continuar usando a sua conta, leia':'Antes de continuar, leia')+' e aceite os Termos de Uso e a Política de Privacidade (versão de '+esc(LEGAL.data)+').</p>'
+      +'<button class="btn block" data-act="lgTerms">Ler os Termos de Uso</button><button class="btn block" data-act="lgPriv">Ler a Política de Privacidade</button>'
+      +'<button class="btn pri block" data-act="lgAccept">Li e aceito</button>');
+  },1500);
+}
+A.lgAccept=function(){
+  if(!SUPA_ON){lsSet('catalogo-aceite',LEGAL.versao);closeSheet();toast('Obrigada! Aceite registrado');return}
+  sbFresh().then(function(){return sbReq('PUT','/auth/v1/user',{data:{aceite_versao:LEGAL.versao,aceite_em:new Date().toISOString()}})}).then(function(r){
+    if(r.ok){if(SB.sess){SB.sess.ac=LEGAL.versao;sbStore()}closeSheet();toast('Obrigada! Aceite registrado')}else toast(sbErr(r));
+  },function(){toast('Sem internet. Tente de novo quando conectar.')});
+};
+
+function lgCard(){
+  return '<div class="card2"><h3>Privacidade e meus dados</h3><p>Veja como seus dados são usados e leve ou apague tudo quando quiser.</p>'
+    +'<button class="btn" data-act="lgPriv">Política de Privacidade</button><button class="btn" data-act="lgTerms">Termos de Uso</button>'
+    +'<button class="btn" data-act="lgExport">Baixar todos os meus dados</button><button class="btn" data-act="lgMail">Falar com a gente sobre meus dados</button>'
+    +(SUPA_ON?(SB.sess?'<button class="btn dng" data-act="lgDel">Apagar minha conta e meus dados</button>':''):'<button class="btn dng" data-act="lgDel">Apagar todos os dados deste aparelho</button>')+'</div>';
+}
+A.lgMail=function(){
+  if(/^\(/.test(LEGAL.email)){toast('E-mail de contato ainda não configurado');return}
+  location.href='mailto:'+LEGAL.email+'?subject='+encodeURIComponent('Meus dados - Catálogo e Pronta Entrega');
+};
+A.lgExport=function(){
+  flush();
+  if(!dl){A.bkCopy();return}
+  var o=Object.assign({},S,{exportado_em:new Date().toISOString(),conta:{email:SB.sess?SB.sess.email:'',id:SB.sess?SB.sess.uid:'',aceite_versao:SB.sess?SB.sess.ac:''}});
+  dl.save({filename:'meus-dados-catalogo-'+new Date().toISOString().slice(0,10)+'.json',data:JSON.stringify(o,null,2)}).then(function(){toast('Arquivo salvo. Ele também serve para restaurar o app.')}).catch(function(e){
+    if(e&&e.code==='declined')return;
+    toast('Não deu para salvar como arquivo. Copie o texto.');A.bkCopy();
+  });
+};
+A.lgDel=function(){
+  sheet('Apagar minha conta e meus dados','<p class="muted" style="margin:0">Isso apaga para sempre a sua conta, o catálogo guardado na nuvem (produtos, fotos, estoque, clientes, vendas e parcelas) e os dados deste aparelho. Não dá para desfazer.</p>'
+    +'<div class="card2" style="margin:0"><p>Backups em arquivo que você salvou continuam com você. Em outros aparelhos onde você entrou, use “Sair da conta” para limpar os dados de lá.</p></div>'
+    +'<button class="btn block" data-act="lgExport">Baixar meus dados antes</button>'
+    +'<label class="fld"><span>Para confirmar, digite APAGAR</span><input id="lg-conf" type="text" autocomplete="off" autocapitalize="characters" placeholder="APAGAR"></label>'
+    +'<small id="lg-err" style="color:var(--danger)"></small>'
+    +'<button class="btn dng block" data-act="lgDelGo">Apagar tudo para sempre</button>');
+};
+A.lgDelGo=function(el){
+  var v=(($('#lg-conf')||{}).value||'').trim().toUpperCase();
+  if(v!=='APAGAR'){var e=$('#lg-err');if(e)e.textContent='Digite APAGAR para confirmar.';return}
+  twoTap(el,function(){
+    if(LG.busy)return;LG.busy=true;
+    sbFresh().then(function(){return sbReq('POST','/rest/v1/rpc/delete_my_account',{})}).then(function(r){
+      LG.busy=false;
+      if(!r.ok){toast(r.status===404?'A função de apagar ainda não foi instalada no Supabase. Rode o supabase_lgpd.sql.':'Não deu para apagar (erro '+r.status+'). Tente de novo.');return}
+      lgWipe();
+    },function(e){LG.busy=false;toast(e&&e.noauth?'Sessão expirada. Entre de novo e tente apagar.':'Sem internet. Conecte para apagar sua conta.')});
+  });
+};
+function lgWipe(){
+  clearTimeout(SB.timer);clearTimeout(saveTimer);saveTimer=null;
+  sbDoOut();
+  idbDel('prev-local').catch(function(){});
+  ['catalogo-conta','catalogo-sessao','catalogo-state','catalogo-aceite'].forEach(lsDel);
+  G.mode='create';G.agree=false;G.email='';G.msg='Sua conta e seus dados foram apagados.';gateRender();
+}
+
+var _lgDel=A.lgDel,_lgDelGo=A.lgDelGo;
+A.lgDel=function(){
+  if(SUPA_ON){_lgDel();return}
+  sheet('Apagar todos os dados deste aparelho','<p class="muted" style="margin:0">Isso apaga para sempre produtos, fotos, estoque, clientes, vendas, parcelas e ajustes deste aparelho. Não existe cópia na nuvem, então só um backup em arquivo traz tudo de volta.</p>'
+    +'<button class="btn block" data-act="lgExport">Baixar meus dados antes</button>'
+    +'<label class="fld"><span>Para confirmar, digite APAGAR</span><input id="lg-conf" type="text" autocomplete="off" autocapitalize="characters" placeholder="APAGAR"></label>'
+    +'<small id="lg-err" style="color:var(--danger)"></small>'
+    +'<button class="btn dng block" data-act="lgDelGo">Apagar tudo para sempre</button>');
+};
+A.lgDelGo=function(el){
+  if(SUPA_ON){_lgDelGo(el);return}
+  var v=(($('#lg-conf')||{}).value||'').trim().toUpperCase();
+  if(v!=='APAGAR'){var e=$('#lg-err');if(e)e.textContent='Digite APAGAR para confirmar.';return}
+  twoTap(el,lgWipeLocal);
+};
+function lgWipeLocal(){
+  clearTimeout(saveTimer);saveTimer=null;
+  var th=S.theme;S=normalize({theme:th});writeNow();
+  idbDel('prev-local').catch(function(){});
+  ['catalogo-conta','catalogo-sessao','catalogo-state','catalogo-aceite','catalogo-sync','catalogo-supa'].forEach(lsDel);
+  closeSheet();T.client=null;T.tab='prod';render();toast('Dados deste aparelho apagados');
+}
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
