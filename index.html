@@ -718,18 +718,33 @@ function daySummary(){
   var tl=[['today','Vence hoje','hot'],['late','Atrasadas','late'],['month','Neste mês','']];
   el.innerHTML='<div class="dsum">'+tl.map(function(t){var o=d[t[0]];return '<button class="dt'+(t[2]&&o.n?' '+t[2]:'')+'" data-act="sumOpen" data-k="'+t[0]+'"><small>'+t[1]+'</small><strong>'+(o.n?brl(o.sum):'—')+'</strong><em>'+(o.n?o.n+(o.n>1?' parcelas':' parcela'):'nenhuma')+'</em></button>'}).join('')+'</div>';
 }
-function sumSheet(k){
-  var d=dayData()[k],hj=ymd(new Date());
-  if(!d.n){toast(k==='today'?'Nada vence hoje':k==='late'?'Nenhuma parcela atrasada':'Nada a receber neste mês');return}
+var SUMCUT='';
+function monthData(cut){
+  var hj=ymd(new Date()),ym=hj.slice(0,7),r={sum:0,n:0,by:{}};
+  S.clients.forEach(function(c){(c.parc||[]).forEach(function(p){
+    var v=pend(p);if(p.paid||v<=0||p.due.slice(0,7)!==ym||(cut&&p.due>cut))return;
+    r.sum+=v;r.n++;var b=r.by[c.id]||(r.by[c.id]={c:c,sum:0,n:0,due:p.due});b.sum+=v;b.n++;if(p.due<b.due)b.due=p.due;
+  })});
+  r.sum=Math.round(r.sum*100)/100;return r;
+}
+function sumSheet(k,keep){
+  var hj=ymd(new Date());
+  if(k==='month'&&!keep)SUMCUT=hj;
+  var all=dayData()[k];
+  if(!all.n){toast(k==='today'?'Nada vence hoje':k==='late'?'Nenhuma parcela atrasada':'Nada a receber neste mês');return}
+  var d=k==='month'?monthData(SUMCUT):all;
   var arr=Object.keys(d.by).map(function(id){return d.by[id]}).sort(function(a,b){return a.due<b.due?-1:1});
   var ttl=k==='today'?'Vence hoje':k==='late'?'Atrasadas':'A receber em '+new Date().toLocaleDateString('pt-BR',{month:'long'});
-  sheet(ttl,'<div class="totbar"><span>Total</span><span>'+brl(d.sum)+'</span></div>'+(k==='today'?dayBtn():'')+'<div class="list">'+arr.map(function(x){
+  var fim=hj.slice(0,8)+String(new Date(+hj.slice(0,4),+hj.slice(5,7),0).getDate()).padStart(2,'0');
+  var filtro=k==='month'?'<label class="fld"><span>Mostrar parcelas que vencem até</span><input type="date" data-on="sumCut" value="'+SUMCUT+'" max="'+fim+'"></label>'
+    +'<div class="acts" style="margin:-4px 0 10px"><button class="btn sm'+(SUMCUT===hj?' pri':'')+'" data-act="sumCutSet" data-v="'+hj+'">Até hoje</button><button class="btn sm'+(SUMCUT===fim?' pri':'')+'" data-act="sumCutSet" data-v="'+fim+'">Mês todo</button></div>':'';
+  sheet(ttl,'<div class="totbar"><span>Total</span><span>'+brl(d.sum)+'</span></div>'+filtro+(k==='today'?dayBtn():'')+(arr.length?'':'<p class="muted">Nenhuma parcela até essa data.</p>')+'<div class="list">'+arr.map(function(x){
     var sub=k==='late'?'desde '+fmtD(x.due):k==='today'?'vence hoje':'a partir de '+fmtD(x.due);
     return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small class="num">'+x.n+(x.n>1?' parcelas':' parcela')+' · '+sub+'</small><span class="num">'+brl(x.sum)+'</span></div><div class="acts" style="flex-direction:column"><button class="btn sm pri" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button><button class="btn sm" data-act="sumPaga" data-id="'+x.c.id+'" data-k="'+k+'">Pagar</button></div></div>'}).join('')+'</div>');
 }
 function sumMatch(k,p){
   var hj=ymd(new Date()),ym=hj.slice(0,7);
-  return k==='today'?p.due===hj:k==='late'?p.due<hj:p.due.slice(0,7)===ym;
+  return k==='today'?p.due===hj:k==='late'?p.due<hj:(p.due.slice(0,7)===ym&&(!SUMCUT||p.due<=SUMCUT));
 }
 function vCli(){
   $('#hd').innerHTML='<h1>Clientes</h1><div class="acts"><button class="btn" data-act="cobList">Cobrar</button><button class="btn pri" data-act="newCli">+ Cliente</button></div>';
@@ -1874,6 +1889,8 @@ function start(){
   load().then(function(){applyTheme();try{render()}catch(e){showErr(e.message)}sbBoot();lgCheck()}).catch(function(){});
 }
 
+H.sumCut=function(el){if(!el.value)return;SUMCUT=el.value;sumSheet('month',true)};
+A.sumCutSet=function(el){SUMCUT=el.dataset.v;sumSheet('month',true)};
 /* ===== Pagar direto da lista (Vence hoje / Atrasadas / A receber no mês) ===== */
 A.sumPaga=function(el){
   if(!el.dataset.armed){
@@ -1884,7 +1901,7 @@ A.sumPaga=function(el){
   var c=client(el.dataset.id),k=el.dataset.k;if(!c)return;
   (c.parc||[]).forEach(function(p){if(!p.paid&&pend(p)>0&&sumMatch(k,p)){p.paid=true;p.pa=p.val}});
   save();render();toast('Parcela paga: '+c.name);
-  if(dayData()[k].n)sumSheet(k);else closeSheet();
+  if(dayData()[k].n)sumSheet(k,true);else closeSheet();
 };
 
 /* ===== Marcar como paga (aba Cobrar) ===== */
