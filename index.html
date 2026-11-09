@@ -308,7 +308,7 @@ function applyTheme(){
   try{localStorage.setItem('catalogo-tema',p.id)}catch(e){}
   var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',p.a);
 }
-var S={v:1,recFmt:'img',shop:'',theme:'verde',lastBackup:0,products:[],stock:[],clients:[],coupons:[{id:'cp10',name:'10%',type:'pct',val:10}],msg:'',goals:{},goalDef:0,msgL:'',lemDias:1,promos:{promo:'',novo:'',livre:''},msgS:'',sumDias:60};
+var S={v:1,recFmt:'img',shop:'',theme:'verde',lastBackup:0,products:[],stock:[],clients:[],coupons:[{id:'cp10',name:'10%',type:'pct',val:10}],msg:'',goals:{},goalDef:0,msgL:'',lemDias:1,promos:{promo:'',novo:'',livre:''},msgS:'',sumDias:60,multa:2,juros:0.3325};
 var storageOK=true,saveTimer=null;
 function idb(){return new Promise(function(res,rej){try{var r=indexedDB.open('catalogo-pronta-entrega',1);r.onupgradeneeded=function(){r.result.createObjectStore('kv')};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}}catch(e){rej(e)}})}
 function idbGet(k){return idb().then(function(db){return new Promise(function(res,rej){var q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=function(){res(q.result)};q.onerror=function(){rej(q.error)}})})}
@@ -316,7 +316,7 @@ function idbSet(k,v){return idb().then(function(db){return new Promise(function(
 function idbDel(k){return idb().then(function(db){return new Promise(function(res,rej){var t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=function(){res()};t.onerror=function(){rej(t.error)};t.onabort=function(){rej(t.error)}})})}
 function normalize(o){
   o=o&&typeof o==='object'?o:{};
-  return {v:1,ts:Number(o.ts)||0,recFmt:o.recFmt==='txt'?'txt':'img',shop:String(o.shop||''),theme:PALS.some(function(p){return p.id===o.theme})?o.theme:'verde',lastBackup:Number(o.lastBackup)||0,msg:typeof o.msg==='string'?o.msg:'',goals:(o.goals&&typeof o.goals==='object'&&!Array.isArray(o.goals))?Object.keys(o.goals).reduce(function(a,k){var v=Number(o.goals[k]);if(/^\d{4}-\d{2}$/.test(k)&&isFinite(v)&&v>=0)a[k]=v;return a},{}):{},goalDef:Math.max(0,Number(o.goalDef)||0),msgS:typeof o.msgS==='string'?o.msgS:'',sumDias:(isFinite(Number(o.sumDias))&&Number(o.sumDias)>=7&&Number(o.sumDias)<=730)?Math.round(Number(o.sumDias)):60,msgL:typeof o.msgL==='string'?o.msgL:'',lemDias:(o.lemDias!==undefined&&o.lemDias!==null&&o.lemDias!==''&&isFinite(Number(o.lemDias)))?Math.min(7,Math.max(0,Math.round(Number(o.lemDias)))):1,promos:(function(q){q=q&&typeof q==='object'?q:{};return {promo:typeof q.promo==='string'?q.promo:'',novo:typeof q.novo==='string'?q.novo:'',livre:typeof q.livre==='string'?q.livre:''}})(o.promos),coupons:Array.isArray(o.coupons)?o.coupons.filter(function(c){return c&&c.name}).map(function(c){return {id:c.id||uid(),name:String(c.name),type:c.type==='val'?'val':'pct',val:Number(c.val)||0}}):[{id:uid(),name:'10%',type:'pct',val:10}],
+  return {v:1,ts:Number(o.ts)||0,recFmt:o.recFmt==='txt'?'txt':'img',shop:String(o.shop||''),theme:PALS.some(function(p){return p.id===o.theme})?o.theme:'verde',lastBackup:Number(o.lastBackup)||0,msg:typeof o.msg==='string'?o.msg:'',goals:(o.goals&&typeof o.goals==='object'&&!Array.isArray(o.goals))?Object.keys(o.goals).reduce(function(a,k){var v=Number(o.goals[k]);if(/^\d{4}-\d{2}$/.test(k)&&isFinite(v)&&v>=0)a[k]=v;return a},{}):{},goalDef:Math.max(0,Number(o.goalDef)||0),msgS:typeof o.msgS==='string'?o.msgS:'',multa:(o.multa!==undefined&&o.multa!==null&&o.multa!==''&&isFinite(Number(o.multa))&&Number(o.multa)>=0&&Number(o.multa)<=100)?Number(o.multa):2,juros:(o.juros!==undefined&&o.juros!==null&&o.juros!==''&&isFinite(Number(o.juros))&&Number(o.juros)>=0&&Number(o.juros)<=100)?Number(o.juros):0.3325,sumDias:(isFinite(Number(o.sumDias))&&Number(o.sumDias)>=7&&Number(o.sumDias)<=730)?Math.round(Number(o.sumDias)):60,msgL:typeof o.msgL==='string'?o.msgL:'',lemDias:(o.lemDias!==undefined&&o.lemDias!==null&&o.lemDias!==''&&isFinite(Number(o.lemDias)))?Math.min(7,Math.max(0,Math.round(Number(o.lemDias)))):1,promos:(function(q){q=q&&typeof q==='object'?q:{};return {promo:typeof q.promo==='string'?q.promo:'',novo:typeof q.novo==='string'?q.novo:'',livre:typeof q.livre==='string'?q.livre:''}})(o.promos),coupons:Array.isArray(o.coupons)?o.coupons.filter(function(c){return c&&c.name}).map(function(c){return {id:c.id||uid(),name:String(c.name),type:c.type==='val'?'val':'pct',val:Number(c.val)||0}}):[{id:uid(),name:'10%',type:'pct',val:10}],
     products:(Array.isArray(o.products)?o.products:[]).map(function(p){return {id:p.id||uid(),name:String(p.name||'Sem nome'),price:Number(p.price)||0,photo:p.photo||'',cat:!!p.cat,colors:Array.isArray(p.colors)?p.colors:[],sizes:Array.isArray(p.sizes)?p.sizes:[],catg:String(p.catg||''),kit:Array.isArray(p.kit)?p.kit.filter(function(k){return k&&k.pid}).map(function(k){return {pid:k.pid,qty:Math.max(1,parseInt(k.qty,10)||1)}}):[]}}),
     stock:(Array.isArray(o.stock)?o.stock:[]).map(function(r){return {id:r.id||uid(),pid:r.pid,color:r.color||'',size:r.size||'',qty:Math.max(0,parseInt(r.qty,10)||0)}}),
     clients:(Array.isArray(o.clients)?o.clients:[]).map(function(c){return {id:c.id||uid(),name:String(c.name||'Sem nome'),phone:String(c.phone||''),comments:Array.isArray(c.comments)?c.comments:[],buys:Array.isArray(c.buys)?c.buys:[],parc:Array.isArray(c.parc)?c.parc:[]}})};
@@ -385,12 +385,15 @@ var cpById=function(id){return (S.coupons||[]).find(function(c){return c.id===id
 var cpLabel=function(c){return c.type==='pct'?c.val+'% de desconto':brl(c.val)+' de desconto'};
 function cpPrice(price,cp){if(!cp)return price;var v=cp.type==='pct'?price*(1-cp.val/100):price-cp.val;return Math.max(0,Math.round(v*100)/100)}
 function pend(p){return p.paid?0:Math.max(0,Math.round((p.val-(p.pa||0))*100)/100)}
-var MULTA_PCT=2,JURO_DIA_PCT=0.3325;
+var MULTA_PADRAO=2,JURO_PADRAO=0.3325;
+function multaPct(){var v=Number(S.multa);return isFinite(v)&&v>=0?v:MULTA_PADRAO}
+function jurosPct(){var v=Number(S.juros);return isFinite(v)&&v>=0?v:JURO_PADRAO}
+function fmtPct(n){return String(Math.round(n*10000)/10000).replace('.',',')}
 function lateInfo(p){
   var b=pend(p),hj=ymd(new Date());
   if(p.paid||b<=0||!(p.due<hj))return {base:b,multa:0,juros:0,dias:0,total:b,late:false};
   var a=p.due.split('-'),dias=Math.max(1,Math.floor((Date.now()-new Date(+a[0],+a[1]-1,+a[2]).getTime())/864e5));
-  var multa=Math.round(b*MULTA_PCT)/100,juros=Math.round(b*JURO_DIA_PCT*dias)/100;
+  var multa=Math.round(b*multaPct())/100,juros=Math.round(b*jurosPct()*dias)/100;
   return {base:b,multa:multa,juros:juros,dias:dias,total:Math.round((b+multa+juros)*100)/100,late:true};
 }
 function grpLate(g){var o={base:0,multa:0,juros:0,total:0,late:false};g.ps.forEach(function(p){var x=lateInfo(p);o.base+=x.base;o.multa+=x.multa;o.juros+=x.juros;o.total+=x.total;if(x.late)o.late=true});['base','multa','juros','total'].forEach(function(k){o[k]=Math.round(o[k]*100)/100});return o}
@@ -686,7 +689,7 @@ function cobMsg(c,mode,due){
   var hj=ymd(new Date()),leg=0;
   c.buys.forEach(function(b){if(!b.paid&&!b.sid)leg+=bnet(b)});
   var g=groupParc((c.parc||[]).filter(function(p){return !p.paid&&(!due||p.due===due)}))[0],v={nome:c.name.trim().split(/\s+/)[0],loja:S.shop||''};
-  if(g){v.valor=grpAll(g);var gl=grpLate(g);if(gl.late)v.valor+=' (com multa de 2% e juros de 0,3325% ao dia: '+brl(gl.total)+')';v.parcela=grpLbl(g);v.vencimento=fmtD(g.due);v.quando=g.due<hj?'venceu em '+fmtD(g.due):g.due===hj?'vence hoje':g.due===ymd(new Date(Date.now()+864e5))?'vence amanhã ('+fmtD(g.due)+')':'vence em '+fmtD(g.due)}
+  if(g){v.valor=grpAll(g);var gl=grpLate(g);if(gl.late)v.valor+=' (com multa de '+fmtPct(multaPct())+'% e juros de '+fmtPct(jurosPct())+'% ao dia: '+brl(gl.total)+')';v.parcela=grpLbl(g);v.vencimento=fmtD(g.due);v.quando=g.due<hj?'venceu em '+fmtD(g.due):g.due===hj?'vence hoje':g.due===ymd(new Date(Date.now()+864e5))?'vence amanhã ('+fmtD(g.due)+')':'vence em '+fmtD(g.due)}
   else{v.valor=brl(leg>0?leg:owed(c));v.parcela='';v.vencimento='';v.quando='está em aberto'}
   return fillMsg(mode==='lem'?((S.msgL&&S.msgL.trim())?S.msgL:DEFMSGL):((S.msg&&S.msg.trim())?S.msg:DEFMSG),v);
 }
@@ -722,7 +725,11 @@ function sumSheet(k){
   var ttl=k==='today'?'Vence hoje':k==='late'?'Atrasadas':'A receber em '+new Date().toLocaleDateString('pt-BR',{month:'long'});
   sheet(ttl,'<div class="totbar"><span>Total</span><span>'+brl(d.sum)+'</span></div>'+(k==='today'?dayBtn():'')+'<div class="list">'+arr.map(function(x){
     var sub=k==='late'?'desde '+fmtD(x.due):k==='today'?'vence hoje':'a partir de '+fmtD(x.due);
-    return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small class="num">'+x.n+(x.n>1?' parcelas':' parcela')+' · '+sub+'</small><span class="num">'+brl(x.sum)+'</span></div><button class="btn sm pri" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button></div>'}).join('')+'</div>');
+    return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b>'+esc(x.c.name)+'</b><small class="num">'+x.n+(x.n>1?' parcelas':' parcela')+' · '+sub+'</small><span class="num">'+brl(x.sum)+'</span></div><div class="acts" style="flex-direction:column"><button class="btn sm pri" data-act="cobrar" data-id="'+x.c.id+'">Cobrar</button><button class="btn sm" data-act="sumPaga" data-id="'+x.c.id+'" data-k="'+k+'">Pagar</button></div></div>'}).join('')+'</div>');
+}
+function sumMatch(k,p){
+  var hj=ymd(new Date()),ym=hj.slice(0,7);
+  return k==='today'?p.due===hj:k==='late'?p.due<hj:p.due.slice(0,7)===ym;
 }
 function vCli(){
   $('#hd').innerHTML='<h1>Clientes</h1><div class="acts"><button class="btn" data-act="cobList">Cobrar</button><button class="btn pri" data-act="newCli">+ Cliente</button></div>';
@@ -748,7 +755,7 @@ function vClient(){
     +'<div class="seg"><button class="'+(T.ctab==='buys'?'on':'')+'" data-act="ctab" data-v="buys">Compras ('+c.buys.length+')</button><button class="'+(T.ctab==='cm'?'on':'')+'" data-act="ctab" data-v="cm">Comentários ('+c.comments.length+')</button><button class="'+(T.ctab==='mo'?'on':'')+'" data-act="ctab" data-v="mo">Meses</button></div>';
   if(T.ctab==='mo'){h+=cliMonths(c)}else if(T.ctab==='buys'){
     h+='<button class="btn block" data-act="newBuy" style="margin-bottom:6px">+ Adicionar compra</button>'+(c.buys.length?'<button class="btn block" data-act="extrato" style="margin-bottom:6px">Extrato do cliente</button>':'')+'';
-    if((c.parc||[]).length){var hj=ymd(new Date());h+='<div class="day">Parcelas</div><small class="muted" style="display:block;margin:-2px 0 8px">Toque numa parcela para mudar o valor, a data ou registrar um pagamento parcial.</small><div class="list">'+groupParc(c.parc).map(function(g){return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto" data-act="editPar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'" role="button" tabindex="0"><div class="mid"><b class="num">'+esc(grpTitle(g))+'</b>'+(g.ps.length>1?'<span class="num">Total '+brl(g.sum)+'</span>':'')+'<small>'+(g.ps.length>1?'Parcelas ':'Parcela ')+grpLbl(g)+' · vence '+fmtD(g.due)+(!g.paid&&g.due<hj?' · atrasada':'')+'</small>'+(!g.paid&&grpLate(g).late?'<small class="num" style="color:var(--warn)">Com multa 2% + juros 0,3325%/dia: '+brl(grpLate(g).total)+'</small>':'')+(grpPartial(g)?'<small class="num" style="color:var(--ok)">'+esc(grpPartial(g))+'</small>':'')+(recOk(g)?'<button class="link" style="color:var(--accent);justify-self:start" data-act="recibo" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">Recibo</button>':'')+'</div><button class="chip '+(g.paid?'ok':'warn')+'" style="border:0;min-height:34px;padding:4px 12px" data-act="togglePar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">'+(g.paid?'Paga'+fpTxt(g.ps[0]):'A receber')+'</button></div>'}).join('')+'</div>'}
+    if((c.parc||[]).length){var hj=ymd(new Date());h+='<div class="day">Parcelas</div><small class="muted" style="display:block;margin:-2px 0 8px">Toque numa parcela para mudar o valor, a data ou registrar um pagamento parcial.</small><div class="list">'+groupParc(c.parc).map(function(g){return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto" data-act="editPar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'" role="button" tabindex="0"><div class="mid"><b class="num">'+esc(grpTitle(g))+'</b>'+(g.ps.length>1?'<span class="num">Total '+brl(g.sum)+'</span>':'')+'<small>'+(g.ps.length>1?'Parcelas ':'Parcela ')+grpLbl(g)+' · vence '+fmtD(g.due)+(!g.paid&&g.due<hj?' · atrasada':'')+'</small>'+(!g.paid&&grpLate(g).late?'<small class="num" style="color:var(--warn)">Com multa '+fmtPct(multaPct())+'% + juros '+fmtPct(jurosPct())+'%/dia: '+brl(grpLate(g).total)+'</small>':'')+(grpPartial(g)?'<small class="num" style="color:var(--ok)">'+esc(grpPartial(g))+'</small>':'')+(recOk(g)?'<button class="link" style="color:var(--accent);justify-self:start" data-act="recibo" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">Recibo</button>':'')+'</div><button class="chip '+(g.paid?'ok':'warn')+'" style="border:0;min-height:34px;padding:4px 12px" data-act="togglePar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">'+(g.paid?'Paga'+fpTxt(g.ps[0]):'A receber')+'</button></div>'}).join('')+'</div>'}
     if(!c.buys.length)h+='<div class="empty" style="margin-top:12px"><h3>Nenhuma compra</h3><p>As vendas feitas na Pronta entrega aparecem aqui. Você também pode adicionar uma compra manualmente.</p></div>';
     else{
       var days={},order=[];T.seen={};
@@ -865,12 +872,12 @@ function vSet(){
   $('#hd').innerHTML='<h1>Ajustes</h1>';
   $('#main').innerHTML='<div class="banner" id="bn" '+(storageOK?'hidden':'')+'>Este navegador não está guardando os dados. Faça um backup agora.</div>'
     +sbCard()+'<div class="card2"><h3>Sua loja</h3><label class="fld"><span>Nome no catálogo compartilhado</span><input id="shop" data-on="shop" type="text" placeholder="Ex.: Potes da Ana" value="'+esc(S.shop)+'" autocomplete="off"></label></div>'
-    +themeCard()+cupomCard()+msgCard()+lemCard()+recCard()+sumCard()
+    +themeCard()+cupomCard()+msgCard()+feeCard()+lemCard()+recCard()+sumCard()
     +'<div class="card2"><h3>Backup</h3><p>Os dados ficam neste aparelho. Salve um backup de vez em quando para não perder nada se trocar de celular ou limpar o navegador.</p><p id="bk-info"></p>'
     +'<button class="btn pri" data-act="bkSave">Salvar backup</button><button class="btn" data-act="bkCopy">Ver texto do backup para copiar</button><button class="btn" data-act="bkImport">Restaurar backup</button></div>'
     +lgCard()+'<div class="card2"><h3>Instalar no iPhone</h3><p>No Safari, toque em Compartilhar e depois em “Adicionar à Tela de Início”. O app abre em tela cheia, como qualquer outro.</p></div>'
     +(S.products.length?'':'<div class="card2"><h3>Quer ver como funciona?</h3><p>Carrega três produtos de exemplo com estoque. Dá para apagar depois.</p><button class="btn" data-act="seed">Carregar exemplos</button></div>')+accCard();
-  msgPv();msgLPv();msgSPv();bkInfo();
+  msgPv();msgLPv();msgSPv();feePv();bkInfo();
 }
 function backupJSON(){return JSON.stringify(S)}
 function seed(){
@@ -1537,6 +1544,22 @@ A.cobPaga=function(el){
 };
 
 var DEFMSGS='Oi, {nome}! Tudo bem? 💛\n\nFaz um tempinho que a gente não se fala e fiquei com saudade! Chegaram novidades na {loja} e lembrei de você. Quer ver? Me chama que eu te mando as fotos! 🌷';
+function feeCard(){
+  var pad=multaPct()===MULTA_PADRAO&&jurosPct()===JURO_PADRAO;
+  return '<div class=\"card2\"><h3>Multa e juros por atraso</h3><p>Valem para parcelas vencidas. A multa é cobrada uma vez só; o juros é por dia de atraso. Use vírgula para decimais, e 0 para não cobrar.</p>'
+    +'<label class=\"fld\"><span>Multa (%)</span><input id=\"fee-m\" data-on=\"feeM\" type=\"text\" inputmode=\"decimal\" value=\"'+fmtPct(multaPct())+'\" autocomplete=\"off\"></label>'
+    +'<label class=\"fld\"><span>Juros ao dia (%)</span><input id=\"fee-j\" data-on=\"feeJ\" type=\"text\" inputmode=\"decimal\" value=\"'+fmtPct(jurosPct())+'\" autocomplete=\"off\"></label>'
+    +'<small class=\"muted\" id=\"fee-pv\"></small>'
+    +'<button class=\"btn\" data-act=\"feeReset\"'+(pad?' hidden':'')+' id=\"fee-rs\">Voltar ao padrão (2% e 0,3325% ao dia)</button></div>';
+}
+function feePv(){
+  var e=$('#fee-pv');if(e)e.textContent='Exemplo: R$ 100,00 com 10 dias de atraso vira '+brl(Math.round((100+multaPct()+jurosPct()*10)*100)/100)+'.';
+  var r=$('#fee-rs');if(r)r.hidden=(multaPct()===MULTA_PADRAO&&jurosPct()===JURO_PADRAO);
+}
+function feeParse(v,def){v=String(v).trim().replace(',','.');if(v==='')return def;var n=Number(v);return isFinite(n)&&n>=0&&n<=100?n:null}
+H.feeM=function(el){var n=feeParse(el.value,MULTA_PADRAO);if(n===null)return;S.multa=n;save();feePv()};
+H.feeJ=function(el){var n=feeParse(el.value,JURO_PADRAO);if(n===null)return;S.juros=n;save();feePv()};
+A.feeReset=function(){S.multa=MULTA_PADRAO;S.juros=JURO_PADRAO;save();render();toast('Multa e juros padrão restaurados')};
 function sumCard(){
   var o=[30,45,60,90,120,180].map(function(n){return '<option value="'+n+'"'+(S.sumDias===n?' selected':'')+'>'+n+' dias</option>'}).join('');
   if([30,45,60,90,120,180].indexOf(S.sumDias)<0)o+='<option value="'+S.sumDias+'" selected>'+S.sumDias+' dias</option>';
@@ -1850,6 +1873,19 @@ function start(){
   initDownloads();
   load().then(function(){applyTheme();try{render()}catch(e){showErr(e.message)}sbBoot();lgCheck()}).catch(function(){});
 }
+
+/* ===== Pagar direto da lista (Vence hoje / Atrasadas / A receber no mês) ===== */
+A.sumPaga=function(el){
+  if(!el.dataset.armed){
+    el.dataset.armed='1';el.dataset.label=el.textContent;el.textContent='Confirmar?';
+    setTimeout(function(){if(el.isConnected&&el.dataset.armed){delete el.dataset.armed;el.textContent=el.dataset.label}},3500);
+    return;
+  }
+  var c=client(el.dataset.id),k=el.dataset.k;if(!c)return;
+  (c.parc||[]).forEach(function(p){if(!p.paid&&pend(p)>0&&sumMatch(k,p)){p.paid=true;p.pa=p.val}});
+  save();render();toast('Parcela paga: '+c.name);
+  if(dayData()[k].n)sumSheet(k);else closeSheet();
+};
 
 /* ===== Marcar como paga (aba Cobrar) ===== */
 A.marcaPaga=function(el){
