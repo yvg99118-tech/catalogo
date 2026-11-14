@@ -118,6 +118,8 @@ small,.muted{color:var(--muted)}
 .seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface2);border-radius:12px;padding:3px;gap:3px;margin:2px 0 12px}
 .seg button{border:0;background:transparent;border-radius:9px;padding:8px 6px;font-weight:600;color:var(--muted)}
 .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.saldo{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--ok-bg);color:var(--ok);border-radius:14px;padding:10px 14px;margin:2px 0 12px;cursor:pointer}
+.saldo.neg{background:var(--warn-bg);color:var(--warn)}.saldo strong{font-size:20px;display:block}.saldo small{color:inherit;opacity:.85}
 .desc{display:block;margin-top:2px;font-style:italic;color:var(--muted)}
 .cfpanel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
 .exlist{max-height:32vh;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:4px 10px;margin-bottom:10px;background:var(--surface)}
@@ -325,7 +327,7 @@ function normalize(o){
   return {v:1,ts:Number(o.ts)||0,recFmt:o.recFmt==='txt'?'txt':'img',shop:String(o.shop||''),theme:PALS.some(function(p){return p.id===o.theme})?o.theme:'verde',lastBackup:Number(o.lastBackup)||0,msg:typeof o.msg==='string'?o.msg:'',goals:(o.goals&&typeof o.goals==='object'&&!Array.isArray(o.goals))?Object.keys(o.goals).reduce(function(a,k){var v=Number(o.goals[k]);if(/^\d{4}-\d{2}$/.test(k)&&isFinite(v)&&v>=0)a[k]=v;return a},{}):{},goalDef:Math.max(0,Number(o.goalDef)||0),msgS:typeof o.msgS==='string'?o.msgS:'',multa:(o.multa!==undefined&&o.multa!==null&&o.multa!==''&&isFinite(Number(o.multa))&&Number(o.multa)>=0&&Number(o.multa)<=100)?Number(o.multa):2,juros:(o.juros!==undefined&&o.juros!==null&&o.juros!==''&&isFinite(Number(o.juros))&&Number(o.juros)>=0&&Number(o.juros)<=100)?Number(o.juros):0.3325,sumDias:(isFinite(Number(o.sumDias))&&Number(o.sumDias)>=7&&Number(o.sumDias)<=730)?Math.round(Number(o.sumDias)):60,msgL:typeof o.msgL==='string'?o.msgL:'',lemDias:(o.lemDias!==undefined&&o.lemDias!==null&&o.lemDias!==''&&isFinite(Number(o.lemDias)))?Math.min(7,Math.max(0,Math.round(Number(o.lemDias)))):1,promos:(function(q){q=q&&typeof q==='object'?q:{};return {promo:typeof q.promo==='string'?q.promo:'',novo:typeof q.novo==='string'?q.novo:'',livre:typeof q.livre==='string'?q.livre:''}})(o.promos),coupons:Array.isArray(o.coupons)?o.coupons.filter(function(c){return c&&c.name}).map(function(c){return {id:c.id||uid(),name:String(c.name),type:c.type==='val'?'val':'pct',val:Number(c.val)||0}}):[{id:uid(),name:'10%',type:'pct',val:10}],
     products:(Array.isArray(o.products)?o.products:[]).map(function(p){return {id:p.id||uid(),name:String(p.name||'Sem nome'),price:Number(p.price)||0,photo:p.photo||'',cat:!!p.cat,colors:Array.isArray(p.colors)?p.colors:[],sizes:Array.isArray(p.sizes)?p.sizes:[],catg:String(p.catg||''),kit:Array.isArray(p.kit)?p.kit.filter(function(k){return k&&k.pid}).map(function(k){return {pid:k.pid,qty:Math.max(1,parseInt(k.qty,10)||1)}}):[]}}),
     stock:(Array.isArray(o.stock)?o.stock:[]).map(function(r){return {id:r.id||uid(),pid:r.pid,color:r.color||'',size:r.size||'',qty:Math.max(0,parseInt(r.qty,10)||0)}}),
-    clients:(Array.isArray(o.clients)?o.clients:[]).map(function(c){return {id:c.id||uid(),name:String(c.name||'Sem nome'),phone:String(c.phone||''),comments:Array.isArray(c.comments)?c.comments:[],buys:Array.isArray(c.buys)?c.buys:[],parc:Array.isArray(c.parc)?c.parc:[]}})};
+    clients:(Array.isArray(o.clients)?o.clients:[]).map(function(c){return {id:c.id||uid(),name:String(c.name||'Sem nome'),phone:String(c.phone||''),comments:Array.isArray(c.comments)?c.comments:[],buys:Array.isArray(c.buys)?c.buys:[],parc:Array.isArray(c.parc)?c.parc:[],saldo:Math.max(0,Math.round((Number(c.saldo)||0)*100)/100)}})};
 }
 function writeNow(){
   var json=JSON.stringify(S);
@@ -660,7 +662,8 @@ function parForm(id){
     +'<label class="fld"><span>Quanto já foi pago (R$)</span><input id="pe-pa" data-on="peIn" type="text" inputmode="decimal" value="'+fmtNum(pa)+'"></label>'
     +'<small id="pe-rest" class="muted"></small>'
     +'<button class="btn pri block" data-act="parSave" data-id="'+id+'">Salvar parcela</button>'
-    +'<button class="btn block" data-act="parPaid" data-id="'+id+'">Marcar como paga</button>');
+    +'<button class="btn block" data-act="parPaid" data-id="'+id+'">Marcar como paga</button>'
+    +((c.saldo||0)>0.004&&!p.paid?'<button class="btn block" data-act="parSaldo" data-id="'+id+'">Usar saldo ('+brl(c.saldo)+') nesta parcela</button>':''));
   H.peIn();
 }
 function parList(ids){
@@ -767,7 +770,7 @@ function listCli(){
     var pcs=c.buys.reduce(function(s,b){return s+b.qty},0),o=owed(c),last=c.buys.reduce(function(m,b){return Math.max(m,b.t)},0),ex=cliExtra(c,so('cli','nome'));
     return '<div class="row" data-act="openCli" data-id="'+c.id+'" role="button" tabindex="0" style="grid-template-columns:auto minmax(0,1fr) auto"><div class="avatar">'+initial(c.name)+'</div>'
       +'<div class="mid"><b>'+esc(c.name)+'</b><small>'+(pcs?pcs+(pcs>1?' peças':' peça')+' · última em '+fmtDate(last):'Sem compras ainda')+(ex?' · '+ex:'')+'</small></div>'
-      +(o>0?'<span class="chip warn num">Deve '+brl(o)+'</span>':'')+'</div>';
+      +(o>0?'<span class="chip warn num">Deve '+brl(o)+'</span>':((c.saldo||0)>0.004?'<span class="chip ok num">Crédito '+brl(c.saldo)+'</span>':''))+'</div>';
   }).join('')+'</div>';
 }
 function vClient(){
@@ -776,7 +779,7 @@ function vClient(){
   $('#hd').innerHTML='<div class="acts"><button class="btn sm" data-act="backCli">‹ Clientes</button></div><div class="acts"><button class="btn sm" data-act="editCli">Editar</button></div>';
   var h='<div class="hero"><div style="display:flex;gap:12px;align-items:center"><div class="avatar">'+initial(c.name)+'</div><div class="mid"><b style="font-family:var(--f-display);font-size:22px">'+esc(c.name)+'</b><small>'+(esc(c.phone)||'Sem telefone')+'</small></div></div>'
     +'<div class="two"><div><small>Total comprado</small><strong>'+brl(total)+'</strong></div><div class="'+(o>0?'owe':'')+'"><small>A receber</small><strong>'+brl(o)+'</strong></div></div>'+(o>0?'<button class="btn" data-act="cobrar" data-id="'+c.id+'">Cobrar no WhatsApp</button>':'')+'</div>'
-    +'<div class="seg"><button class="'+(T.ctab==='buys'?'on':'')+'" data-act="ctab" data-v="buys">Compras ('+c.buys.length+')</button><button class="'+(T.ctab==='cm'?'on':'')+'" data-act="ctab" data-v="cm">Comentários ('+c.comments.length+')</button><button class="'+(T.ctab==='mo'?'on':'')+'" data-act="ctab" data-v="mo">Meses</button></div>';
+    +saldoCard(c)+'<div class="seg"><button class="'+(T.ctab==='buys'?'on':'')+'" data-act="ctab" data-v="buys">Compras ('+c.buys.length+')</button><button class="'+(T.ctab==='cm'?'on':'')+'" data-act="ctab" data-v="cm">Comentários ('+c.comments.length+')</button><button class="'+(T.ctab==='mo'?'on':'')+'" data-act="ctab" data-v="mo">Meses</button></div>';
   if(T.ctab==='mo'){h+=cliMonths(c)}else if(T.ctab==='buys'){
     h+='<button class="btn block" data-act="newBuy" style="margin-bottom:6px">+ Adicionar compra</button>'+(c.buys.length?'<button class="btn block" data-act="extrato" style="margin-bottom:6px">Extrato do cliente</button>':'')+'';
     if((c.parc||[]).length){var hj=ymd(new Date());h+='<div class="day">Parcelas</div><small class="muted" style="display:block;margin:-2px 0 8px">Toque numa parcela para mudar o valor, a data ou registrar um pagamento parcial.</small><div class="list">'+groupParc(c.parc).map(function(g){return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto" data-act="editPar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'" role="button" tabindex="0"><div class="mid"><b class="num">'+esc(grpTitle(g))+'</b>'+(g.ps.length>1?'<span class="num">Total '+brl(g.sum)+'</span>':'')+'<small>'+(g.ps.length>1?'Parcelas ':'Parcela ')+grpLbl(g)+' · vence '+fmtD(g.due)+(!g.paid&&g.due<hj?' · atrasada':'')+'</small>'+(!g.paid&&grpLate(g).late?'<small class="num" style="color:var(--warn)">Com multa '+fmtPct(multaPct())+'% + juros '+fmtPct(jurosPct())+'%/dia: '+brl(grpLate(g).total)+'</small>':'')+(grpPartial(g)?'<small class="num" style="color:var(--ok)">'+esc(grpPartial(g))+'</small>':'')+(recOk(g)?'<button class="link" style="color:var(--accent);justify-self:start" data-act="recibo" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">Recibo</button>':'')+'</div><button class="chip '+(g.paid?'ok':'warn')+'" style="border:0;min-height:34px;padding:4px 12px" data-act="togglePar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">'+(g.paid?'Paga'+fpTxt(g.ps[0]):'A receber')+'</button></div>'}).join('')+'</div>'}
@@ -1094,9 +1097,11 @@ var A={
     var val=parseNum($('#pe-val').value),due=$('#pe-due').value,pa=parseNum($('#pe-pa').value);
     if(!(val>0)){toast('Digite o valor da parcela');return}
     if(!due){toast('Escolha a data de vencimento');return}
+    var sobra=Math.max(0,Math.round((pa-val)*100)/100);
     pa=Math.max(0,Math.min(val,pa));
     p.val=Math.round(val*100)/100;p.due=due;p.pa=Math.round(pa*100)/100;p.paid=p.pa>=p.val-0.004;
-    save();closeSheet();render();toast(p.paid?'Parcela paga':p.pa>0?'Pagamento parcial registrado':'Parcela salva');
+    if(sobra>0)c.saldo=Math.round(((c.saldo||0)+sobra)*100)/100;
+    save();closeSheet();render();toast(sobra>0?'Parcela paga. '+brl(sobra)+' foram para o saldo do cliente':p.paid?'Parcela paga':p.pa>0?'Pagamento parcial registrado':'Parcela salva');
   },
   parPaid:function(el){
     var c=client(T.client),p=(c.parc||[]).find(function(x){return x.id===el.dataset.id});if(!p)return;
@@ -1242,7 +1247,7 @@ var H={
   qHist:function(el){T.q.hist=el.value;listHist()},
   pfPhoto:function(el){var f=el.files&&el.files[0];if(!f)return;readPhoto(f).then(function(u){PF.photo=u;$('#pf-pv').innerHTML='<img alt="" src="'+u+'">'}).catch(function(){toast('Não foi possível ler a foto')})},
   saProd:saVars,
-  peIn:function(){var v=parseNum(($('#pe-val')||{}).value),a=parseNum(($('#pe-pa')||{}).value),e=$('#pe-rest');if(e)e.textContent=a>=v&&v>0?'Parcela paga por inteiro.':'Falta '+brl(Math.max(0,v-a))+'.'},
+  peIn:function(){var v=parseNum(($('#pe-val')||{}).value),a=parseNum(($('#pe-pa')||{}).value),e=$('#pe-rest');if(e)e.textContent=a>v+0.004&&v>0?'Parcela paga. Sobram '+brl(a-v)+' que vão para o saldo do cliente.':a>=v&&v>0?'Parcela paga por inteiro.':'Falta '+brl(Math.max(0,v-a))+'.'},
   saQ:function(el){SAQ=el.value;drawSa()},
   bfProd:bfVars,
   bfQ:function(el){
@@ -1749,7 +1754,7 @@ function extratoText(c,set,withPar){
     L.push('• '+fmtD(ymd(new Date(b.t)))+' '+b.name+(varLabel(b)?' ('+varLabel(b)+')':'')+' '+b.qty+'× = '+brl(bnet(b))+(b.desc?'\n   '+b.desc:''));
   });
   var t='Extrato de '+c.name+(S.shop?' · '+S.shop:'')+'\n\nCompras:\n'+(L.join('\n')||'Nenhuma compra selecionada')
-    +'\n\nTotal comprado: '+brl(r.tot)+'\nJá pago: '+brl(Math.max(0,r.tot-r.fal))+'\nFalta pagar: '+brl(r.fal);
+    +'\n\nTotal comprado: '+brl(r.tot)+'\nJá pago: '+brl(Math.max(0,r.tot-r.fal))+'\nFalta pagar: '+brl(r.fal)+((c.saldo||0)>0.004?'\nCrédito do cliente: '+brl(c.saldo):'');
   if(withPar){
     var ab=(c.parc||[]).filter(function(p){return r.sids.indexOf(p.sid)>-1&&pend(p)>0}).sort(function(a,b){return a.due<b.due?-1:1});
     if(ab.length)t+='\n\nParcelas em aberto:\n'+ab.map(function(p){return '• '+p.i+'/'+p.n+' vence '+fmtD(p.due)+' — '+brl(pend(p))}).join('\n');
@@ -1807,6 +1812,64 @@ A.exQuick=function(el){
   var v=el.dataset.v,lim=Date.now()-30*864e5,s=new Set();
   c.buys.forEach(function(b){if(v==='all'||(v==='rec'&&buyOpen(c,b)>0)||(v==='30'&&b.t>=lim))s.add(b.id)});
   EX.sel=exExpand(c,s);exRefresh();
+};
+
+/* ===== Saldo do cliente (crédito de pagamento a mais) ===== */
+function r2c(n){return Math.round(n*100)/100}
+function faltando(c){var hj=ymd(new Date()),s=0;(c.parc||[]).forEach(function(p){if(!p.paid&&pend(p)>0&&((p.pa||0)>0||p.due<hj))s+=pend(p)});return r2c(s)}
+function saldoCard(c){
+  var cr=c.saldo||0,fa=faltando(c);
+  if(!(c.parc||[]).length&&cr<=0.004)return '';
+  var net=r2c(cr-fa),neg=net<-0.004;
+  var det=neg?'Faltando '+brl(fa)+' em parcelas atrasadas ou com pagamento parcial'+(cr>0.004?' · crédito '+brl(cr):''):(cr>0.004?'Crédito para usar nas próximas parcelas'+(fa>0.004?' · faltando '+brl(fa):''):'Sem crédito nem valor faltando');
+  return '<div class="saldo'+(neg?' neg':'')+'" data-act="saldo" role="button" tabindex="0"><div class="mid"><small>Saldo do cliente</small><strong class="num">'+(neg?'−':'')+brl(Math.abs(net))+'</strong><small>'+det+'</small></div><span class="chip">Abrir</span></div>';
+}
+function saldoPlan(c){
+  var cr=c.saldo||0,out=[];
+  (c.parc||[]).filter(function(p){return !p.paid&&pend(p)>0}).sort(function(a,b){return a.due<b.due?-1:a.due>b.due?1:a.i-b.i}).forEach(function(p){
+    if(cr<=0.004)return;var u=Math.min(cr,pend(p));out.push({p:p,use:r2c(u)});cr=r2c(cr-u);
+  });
+  return out;
+}
+function saldoApply(c,p,use){
+  p.pa=r2c((p.pa||0)+use);
+  if(p.pa>=p.val-0.004){p.paid=true;p.pa=p.val;p.fp='Saldo'}
+  c.saldo=Math.max(0,r2c((c.saldo||0)-use));
+}
+A.saldo=function(){
+  var c=client(T.client);if(!c)return;
+  var cr=c.saldo||0,fa=faltando(c),open=(c.parc||[]).some(function(p){return !p.paid&&pend(p)>0});
+  sheet('Saldo do cliente',
+    '<div class="totbar"><span>Crédito</span><span>'+brl(cr)+'</span></div>'
+    +(fa>0.004?'<div class="totbar" style="color:var(--warn)"><span>Faltando (atrasado ou parcial)</span><span>−'+brl(fa)+'</span></div>':'')
+    +'<p class="muted" style="margin:0 0 10px">Crédito é o valor que o cliente pagou a mais numa parcela. Ele fica guardado aqui e você pode usar nas próximas parcelas.</p>'
+    +(cr>0.004&&open?'<button class="btn pri block" data-act="saldoUse">Usar crédito nas próximas parcelas</button>':'')
+    +'<label class="fld" style="margin-top:12px"><span>Ajustar crédito (R$)</span><input id="sd-v" type="text" inputmode="decimal" value="'+fmtNum(cr)+'"></label>'
+    +'<button class="btn block" data-act="saldoSet">Salvar crédito</button>');
+};
+A.saldoSet=function(){
+  var c=client(T.client),v=parseNum(($('#sd-v')||{}).value);if(!c)return;
+  if(!(v>=0)){toast('Digite um valor de 0 para cima');return}
+  c.saldo=r2c(v);save();closeSheet();render();toast('Crédito salvo');
+};
+A.saldoUse=function(){
+  var c=client(T.client);if(!c)return;
+  var pl=saldoPlan(c);if(!pl.length){toast('Não há parcela em aberto');return}
+  var tot=pl.reduce(function(a,x){return a+x.use},0);
+  sheet('Usar crédito','<p class="muted" style="margin:0">O crédito paga as parcelas em aberto, da mais antiga para a mais nova.</p><div class="list">'
+    +pl.map(function(x){var q=x.p,quita=x.use>=pend(q)-0.004;return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="mid"><b class="num">Parcela '+q.i+'/'+q.n+' · vence '+fmtD(q.due)+'</b><small class="num">Falta '+brl(pend(q))+'</small></div><span class="chip '+(quita?'ok':'warn')+' num">−'+brl(x.use)+(quita?' · quita':'')+'</span></div>'}).join('')+'</div>'
+    +'<div class="totbar"><span>Crédito usado</span><span>'+brl(tot)+'</span></div><small class="muted">Crédito que sobra: '+brl(Math.max(0,r2c((c.saldo||0)-tot)))+'</small>'
+    +'<button class="btn pri block" data-act="saldoGo">Confirmar</button>');
+};
+A.saldoGo=function(){
+  var c=client(T.client);if(!c)return;
+  var pl=saldoPlan(c),tot=0;pl.forEach(function(x){saldoApply(c,x.p,x.use);tot+=x.use});
+  save();closeSheet();render();toast(pl.length?brl(tot)+' do crédito usado':'Nada para usar');
+};
+A.parSaldo=function(el){
+  var c=client(T.client),p=(c.parc||[]).find(function(x){return x.id===el.dataset.id});if(!p)return;
+  var use=r2c(Math.min(c.saldo||0,pend(p)));if(use<=0){toast('Sem crédito para usar');return}
+  saldoApply(c,p,use);save();closeSheet();render();toast(p.paid?'Parcela paga com o saldo':brl(use)+' do saldo usados');
 };
 A.exGo=function(){var c=client(T.client),d=String(c.phone||'').replace(/\D/g,'');if(d.length===10||d.length===11)d='55'+d;window.open('https://wa.me/'+d+'?text='+encodeURIComponent($('#ex-t').value),'_blank')};
 A.exCopy=function(){var e=$('#ex-t'),t=e.value;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){toast('Texto copiado')}).catch(function(){e.select();toast('Selecionado. Copie com o toque longo.')})};
