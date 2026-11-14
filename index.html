@@ -118,6 +118,12 @@ small,.muted{color:var(--muted)}
 .seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface2);border-radius:12px;padding:3px;gap:3px;margin:2px 0 12px}
 .seg button{border:0;background:transparent;border-radius:9px;padding:8px 6px;font-weight:600;color:var(--muted)}
 .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.desc{display:block;margin-top:2px;font-style:italic;color:var(--muted)}
+.cfpanel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.exlist{max-height:32vh;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:4px 10px;margin-bottom:10px;background:var(--surface)}
+.exdh{padding:8px 0 2px;border-top:1px solid var(--line)}.exdh:first-child{border-top:0}
+.exrow{align-items:flex-start;padding:6px 0 6px 26px}
+.exlist .chk input{flex:none;width:20px;height:20px;margin-top:2px}
 .search{width:100%;border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 14px;font-size:16px;margin-bottom:12px}
 .search:focus{border-color:var(--accent);outline:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px}
@@ -565,6 +571,7 @@ function openSell(){
     '<label class="fld"><span>Cliente</span><select id="sl-cli" data-on="slCli">'+S.clients.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>'}).join('')+'<option value="__new">+ Novo cliente</option></select></label>'
     +'<label class="fld" id="sl-new" '+(SL.cid==='__new'?'':'hidden')+'><span>Nome do novo cliente</span><input id="sl-name" data-on="slName" type="text" autocomplete="off" placeholder="Nome"></label>'
     +'<div class="lbl">Itens</div><div id="sl-lines" class="list"></div>'
+    +'<label class="fld"><span>Descrição (opcional)</span><input id="sl-desc" type="text" autocomplete="off" maxlength="200" placeholder="Ex.: pedido de sábado, presente, combinado..."></label>'
     +(S.coupons.length?'<label class="fld"><span>Cupom (opcional)</span><select id="sl-cp" data-on="slCp"><option value="">Sem cupom</option>'+S.coupons.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+' · '+esc(cpLabel(c))+'</option>'}).join('')+'</select></label>':'')
     +'<div class="seg"><button id="sl-p1" class="on" data-act="slPaid" data-v="1">Pago</button><button id="sl-p0" data-act="slPaid" data-v="0">A receber</button></div>'
     +'<div id="sl-par" class="line" hidden><label class="fld"><span>Parcelas</span><select data-on="slN">'+Array.from({length:10},function(_,i){return '<option value="'+(i+1)+'">'+(i+1)+'x</option>'}).join('')+'</select></label>'
@@ -616,7 +623,7 @@ function slDiff(){
   d.textContent=df===0?'':(df>0?'Faltam '+brl(df)+' para fechar o total.':'As parcelas passam '+brl(-df)+' do total.');d.style.color='var(--warn)';
 }
 function sellGo(){
-  var c;
+  var c,dsc=(($('#sl-desc')||{}).value||'').trim();
   if(SL.cid==='__new'){var n=SL.newName.trim();if(!n){toast('Digite o nome do cliente');return}c={id:uid(),name:n,phone:'',comments:[],buys:[]}}
   else{c=client(SL.cid);if(!c){toast('Escolha o cliente');return}}
   if(!SL.paid){var sm=0;for(var j=0;j<SL.inst.length;j++){if(!SL.inst[j].due){toast('Escolha o vencimento de cada parcela');return}sm+=SL.inst[j].val}if(Math.abs(sm-(slNet()+accExtra()))>0.011){toast('A soma das parcelas precisa ser igual ao total');return}}
@@ -626,7 +633,7 @@ function sellGo(){
   if(SL.cid==='__new')S.clients.push(c);
   var t=Date.now(),n2=0,sid=SL.paid?undefined:uid(),ds=distDisc(),cpn=cpById(SL.cp);
   SL.lines.forEach(function(l,ix){var r=srow(l.rid),p=prod(r.pid);r.qty-=l.qty;n2+=l.qty;
-    var bb={id:uid(),t:t,pid:p.id,name:p.name,color:r.color,size:r.size,qty:l.qty,price:l.price,paid:SL.paid,sid:sid,st:1};if(ds[ix]>0){bb.disc=ds[ix]/100;bb.cup=cpn.name}c.buys.push(bb)});
+    var bb={id:uid(),t:t,pid:p.id,name:p.name,color:r.color,size:r.size,qty:l.qty,price:l.price,paid:SL.paid,sid:sid,st:1};if(ds[ix]>0){bb.disc=ds[ix]/100;bb.cup=cpn.name}if(dsc)bb.desc=dsc;c.buys.push(bb)});
   if(sid){c.parc=c.parc||[];SL.inst.forEach(function(x,i){c.parc.push({id:uid(),sid:sid,i:i+1,n:SL.n,due:x.due,val:x.val,paid:false})})}
   S.stock=S.stock.filter(function(r){return r.qty>0});
   save();closeSheet();T.sel.clear();T.selMode=false;toast(n2+(n2>1?' peças enviadas':' peça enviada')+' para '+c.name);render();
@@ -666,6 +673,7 @@ function buyEditForm(id){
   var c=client(T.client),b=c&&c.buys.find(function(x){return x.id===id});if(!b)return;
   sheet('Editar compra','<p class="muted" style="margin:0">'+esc(b.name)+(b.color||b.size?' · '+esc([b.color,b.size].filter(Boolean).join(' · ')):'')+'</p>'
     +'<div class="two-f"><label class="fld"><span>Quantidade</span><input id="be-qty" data-on="beQty" type="number" inputmode="numeric" min="1" value="'+b.qty+'"></label><label class="fld"><span>Preço un. (R$)</span><input id="be-price" data-on="beQty" type="text" inputmode="decimal" value="'+fmtNum(b.price)+'"></label></div>'
+    +'<label class="fld"><span>Descrição (opcional)</span><input id="be-desc" type="text" autocomplete="off" maxlength="200" value="'+esc(b.desc||'')+'"></label>'
     +'<div class="lbl">Cupom de desconto</div>'
     +(S.coupons.length?'<label class="fld"><span>Cupom (opcional)</span><select id="be-cp" data-on="beCp">'+cpOpts((S.coupons.find(function(c){return c.name===b.cup})||{}).id)+'</select></label>':'<small class="muted">Você ainda não tem cupons. Crie em Ajustes, na parte Cupons.</small>')
     +'<label class="fld"><span>Desconto (R$)</span><input id="be-disc" data-on="beIn" type="text" inputmode="decimal" placeholder="0,00" value="'+(b.disc?fmtNum(b.disc):'')+'"></label>'
@@ -763,7 +771,8 @@ function listCli(){
   }).join('')+'</div>';
 }
 function vClient(){
-  var c=client(T.client),total=c.buys.reduce(function(s,b){return s+bnet(b)},0),o=owed(c);
+  var c=client(T.client);if(T.cfCid!==c.id){T.cfCid=c.id;T.cf={st:'all',from:'',to:'',q:''};T.cfOpen=false}
+  var total=c.buys.reduce(function(s,b){return s+bnet(b)},0),o=owed(c);
   $('#hd').innerHTML='<div class="acts"><button class="btn sm" data-act="backCli">‹ Clientes</button></div><div class="acts"><button class="btn sm" data-act="editCli">Editar</button></div>';
   var h='<div class="hero"><div style="display:flex;gap:12px;align-items:center"><div class="avatar">'+initial(c.name)+'</div><div class="mid"><b style="font-family:var(--f-display);font-size:22px">'+esc(c.name)+'</b><small>'+(esc(c.phone)||'Sem telefone')+'</small></div></div>'
     +'<div class="two"><div><small>Total comprado</small><strong>'+brl(total)+'</strong></div><div class="'+(o>0?'owe':'')+'"><small>A receber</small><strong>'+brl(o)+'</strong></div></div>'+(o>0?'<button class="btn" data-act="cobrar" data-id="'+c.id+'">Cobrar no WhatsApp</button>':'')+'</div>'
@@ -771,19 +780,7 @@ function vClient(){
   if(T.ctab==='mo'){h+=cliMonths(c)}else if(T.ctab==='buys'){
     h+='<button class="btn block" data-act="newBuy" style="margin-bottom:6px">+ Adicionar compra</button>'+(c.buys.length?'<button class="btn block" data-act="extrato" style="margin-bottom:6px">Extrato do cliente</button>':'')+'';
     if((c.parc||[]).length){var hj=ymd(new Date());h+='<div class="day">Parcelas</div><small class="muted" style="display:block;margin:-2px 0 8px">Toque numa parcela para mudar o valor, a data ou registrar um pagamento parcial.</small><div class="list">'+groupParc(c.parc).map(function(g){return '<div class="row" style="grid-template-columns:minmax(0,1fr) auto" data-act="editPar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'" role="button" tabindex="0"><div class="mid"><b class="num">'+esc(grpTitle(g))+'</b>'+(g.ps.length>1?'<span class="num">Total '+brl(g.sum)+'</span>':'')+'<small>'+(g.ps.length>1?'Parcelas ':'Parcela ')+grpLbl(g)+' · vence '+fmtD(g.due)+(!g.paid&&g.due<hj?' · atrasada':'')+'</small>'+(!g.paid&&grpLate(g).late?'<small class="num" style="color:var(--warn)">Com multa '+fmtPct(multaPct())+'% + juros '+fmtPct(jurosPct())+'%/dia: '+brl(grpLate(g).total)+'</small>':'')+(grpPartial(g)?'<small class="num" style="color:var(--ok)">'+esc(grpPartial(g))+'</small>':'')+(recOk(g)?'<button class="link" style="color:var(--accent);justify-self:start" data-act="recibo" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">Recibo</button>':'')+'</div><button class="chip '+(g.paid?'ok':'warn')+'" style="border:0;min-height:34px;padding:4px 12px" data-act="togglePar" data-ids="'+g.ps.map(function(p){return p.id}).join(',')+'">'+(g.paid?'Paga'+fpTxt(g.ps[0]):'A receber')+'</button></div>'}).join('')+'</div>'}
-    if(!c.buys.length)h+='<div class="empty" style="margin-top:12px"><h3>Nenhuma compra</h3><p>As vendas feitas na Pronta entrega aparecem aqui. Você também pode adicionar uma compra manualmente.</p></div>';
-    else{
-      var days={},order=[];T.seen={};
-      c.buys.slice().sort(function(a,b){return b.t-a.t}).forEach(function(b){var k=new Date(b.t).toDateString();if(!days[k]){days[k]=[];order.push(k)}days[k].push(b)});
-      order.forEach(function(k){
-        h+='<div class="day">'+fmtDate(days[k][0].t)+'</div><div class="list">'+days[k].map(function(b){
-          return '<div class="row" style="grid-template-columns:auto minmax(0,1fr) auto">'+thumb(prod(b.pid)||{name:b.name})+'<div class="mid"><b>'+esc(b.name)+'</b>'
-            +(b.color||b.size?'<div class="chips">'+(b.color?'<span class="chip">'+esc(b.color)+'</span>':'')+(b.size?'<span class="chip">'+esc(b.size)+'</span>':'')+'</div>':'')
-            +'<small class="num">'+b.qty+' × '+brl(b.price)+(b.disc?' − cupom '+esc(b.cup||'')+' '+brl(b.disc):'')+' = '+brl(bnet(b))+'</small>'+parcSeen(c,b)+'<div style="display:flex;gap:16px;flex-wrap:wrap"><button class="link" style="color:var(--accent)" data-act="buyEdit" data-id="'+b.id+'">Editar</button><button class="link" style="color:var(--accent)" data-act="retOpen" data-id="'+b.id+'">Devolver</button><button class="link" data-act="'+(b.st?'undoBuy':'delBuy')+'" data-id="'+b.id+'">'+(b.st?'Desfazer venda':'Remover compra')+'</button></div></div>'
-            +''+(b.sid?'<span class="chip '+(sidPaid(c,b.sid)?'ok':'warn')+'">'+(sidPaid(c,b.sid)?'Pago':'Parcelado')+'</span>':'<button class="chip '+(b.paid?'ok':'warn')+'" style="border:0;min-height:34px;padding:4px 12px" data-act="togglePaid" data-id="'+b.id+'">'+(b.paid?'Pago'+fpTxt(b):'A receber')+'</button>')+'</div>';
-        }).join('')+'</div>';
-      });
-    }
+    h+=cliFilterBar(c)+'<div id="cl-buys">'+cliBuysHTML(c)+'</div>';
   }else{
     h+='<div class="fld" style="margin-bottom:10px"><textarea class="inp" id="cm-text" placeholder="Escreva um comentário sobre este cliente" style="min-height:90px"></textarea></div><button class="btn pri block" data-act="addCm">Salvar comentário</button>';
     if(c.comments.length)h+='<div class="list" style="margin-top:14px">'+c.comments.slice().sort(function(a,b){return b.t-a.t}).map(function(m){
@@ -791,6 +788,25 @@ function vClient(){
     else h+='<p class="muted" style="text-align:center;margin-top:16px">Nenhum comentário ainda.</p>';
   }
   $('#main').innerHTML=h;
+}
+function cliBuysHTML(c){
+  var h='',fl=cliFiltered(c);
+    if(!c.buys.length)h+='<div class="empty" style="margin-top:12px"><h3>Nenhuma compra</h3><p>As vendas feitas na Pronta entrega aparecem aqui. Você também pode adicionar uma compra manualmente.</p></div>';
+    else if(!fl.length)h+='<div class="empty" style="margin-top:12px"><h3>Nada neste filtro</h3><p>Mude ou limpe o filtro para ver as outras compras.</p></div>';
+    else{
+      var days={},order=[];T.seen={};
+      fl.slice().sort(function(a,b){return b.t-a.t}).forEach(function(b){var k=new Date(b.t).toDateString();if(!days[k]){days[k]=[];order.push(k)}days[k].push(b)});
+      order.forEach(function(k){
+        h+='<div class="day">'+fmtDate(days[k][0].t)+'</div><div class="list">'+days[k].map(function(b){
+          return '<div class="row" style="grid-template-columns:auto minmax(0,1fr) auto">'+thumb(prod(b.pid)||{name:b.name})+'<div class="mid"><b>'+esc(b.name)+'</b>'
+            +(b.color||b.size?'<div class="chips">'+(b.color?'<span class="chip">'+esc(b.color)+'</span>':'')+(b.size?'<span class="chip">'+esc(b.size)+'</span>':'')+'</div>':'')
+            +(b.desc?'<small class="desc">'+esc(b.desc)+'</small>':'')
+            +'<small class="num">'+b.qty+' × '+brl(b.price)+(b.disc?' − cupom '+esc(b.cup||'')+' '+brl(b.disc):'')+' = '+brl(bnet(b))+'</small>'+parcSeen(c,b)+'<div style="display:flex;gap:16px;flex-wrap:wrap"><button class="link" style="color:var(--accent)" data-act="buyEdit" data-id="'+b.id+'">Editar</button><button class="link" style="color:var(--accent)" data-act="retOpen" data-id="'+b.id+'">Devolver</button><button class="link" data-act="'+(b.st?'undoBuy':'delBuy')+'" data-id="'+b.id+'">'+(b.st?'Desfazer venda':'Remover compra')+'</button></div></div>'
+            +''+(b.sid?'<span class="chip '+(sidPaid(c,b.sid)?'ok':'warn')+'">'+(sidPaid(c,b.sid)?'Pago':'Parcelado')+'</span>':'<button class="chip '+(b.paid?'ok':'warn')+'" style="border:0;min-height:34px;padding:4px 12px" data-act="togglePaid" data-id="'+b.id+'">'+(b.paid?'Pago'+fpTxt(b):'A receber')+'</button>')+'</div>';
+        }).join('')+'</div>';
+      });
+    }
+  return h;
 }
 function parcSeen(c,b){
   if(!b.sid||T.seen[b.sid])return '';T.seen[b.sid]=1;
@@ -816,7 +832,7 @@ function vHist(){
 }
 function listHist(){
   var q=norm(T.q.hist||''),all=[],el=$('#list');
-  S.clients.forEach(function(c){c.buys.forEach(function(b){if(!q||norm(c.name).indexOf(q)>-1||norm(b.name).indexOf(q)>-1)all.push({c:c,b:b})})});
+  S.clients.forEach(function(c){c.buys.forEach(function(b){if(!q||norm(c.name).indexOf(q)>-1||norm(b.name).indexOf(q)>-1||norm(b.desc||'').indexOf(q)>-1)all.push({c:c,b:b})})});
   all.sort(function(a,b){return b.b.t-a.b.t});
   if(!el)return;
   if(!all.length){el.innerHTML='<div class="empty"><h3>'+(q?'Nada encontrado':'Nada no histórico ainda')+'</h3><p>As vendas e compras dos clientes aparecem aqui.</p></div>';return}
@@ -847,6 +863,7 @@ function buyForm(){
     +(S.coupons.length?'<label class="fld"><span>Cupom (opcional)</span><select id="bf-cp" data-on="bfCp">'+cpOpts('')+'</select></label>':'')
     +'<small id="bf-disc"></small><div class="totbar"><span>Total</span><span id="bf-total">'+brl(0)+'</span></div>'
     +'<label class="chk"><input type="checkbox" id="bf-paid" data-on="bfPaid" checked> Já foi pago</label><div id="bf-par" class="two-f" hidden><label class="fld"><span>Parcelas</span><select id="bf-n" data-on="bfCp">'+Array.from({length:10},function(_,i){return '<option value="'+(i+1)+'">'+(i+1)+'x</option>'}).join('')+'</select></label><label class="fld"><span>1ª parcela vence</span><input id="bf-due" type="date" value="'+ymd(addMonths(new Date(),1))+'"></label><label class="fld"><span>Acréscimo por mês</span><select id="bf-at" data-on="bfCp"><option value="val">R$ por mês</option><option value="pct">% por mês</option></select></label><label class="fld"><span>Valor do acréscimo</span><input id="bf-av" data-on="bfCp" type="text" inputmode="decimal" placeholder="0,00"></label></div><small id="bf-accn" class="muted"></small>'
+    +'<label class="fld"><span>Descrição (opcional)</span><input id="bf-desc" type="text" autocomplete="off" maxlength="200" placeholder="Ex.: pedido de sábado, presente..."></label>'
     +'<label class="chk"><input type="checkbox" id="bf-stock"> Descontar do estoque</label>'
     +'<button class="btn pri block" data-act="buyGo">Adicionar compra</button>');
   bfVars();
@@ -1062,7 +1079,7 @@ var A={
     var price=parseNum($('#bf-price').value),paid=$('#bf-paid').checked,sid=paid?undefined:uid();
     var cpo=cpById(($('#bf-cp')||{}).value),dsc=cpDiscVal(qty*price,cpo),nb={id:uid(),t:Date.now(),pid:p.id,name:p.name,color:color,size:size,qty:qty,price:price,paid:paid,sid:sid};
     if(dsc>0){nb.disc=dsc;nb.cup=cpo.name}
-    c.buys.push(nb);
+    var bd=(($('#bf-desc')||{}).value||'').trim();if(bd)nb.desc=bd;c.buys.push(nb);
     if(sid){var n=+$('#bf-n').value,cents=Math.round((qty*price-dsc)*100),bs=Math.floor(cents/n),rm=cents-bs*n,pl=accPlan(cents,n,($('#bf-at')||{}).value,parseNum(($('#bf-av')||{}).value)),dp=$('#bf-due').value.split('-'),d0=new Date(+dp[0],+dp[1]-1,+dp[2]);c.parc=c.parc||[];for(var i=0;i<n;i++)c.parc.push({id:uid(),sid:sid,i:i+1,n:n,due:ymd(addMonths(d0,i)),val:pl[i]/100,paid:false})}
     save();closeSheet();render();toast('Compra adicionada');
   },
@@ -1095,7 +1112,7 @@ var A={
     if(disc>qty*price){toast('O desconto passa do valor da compra');return}
     var sidTot=function(){return c.buys.filter(function(x){return b.sid&&x.sid===b.sid}).reduce(function(a,x){return a+bnet(x)},0)};
     var before=b.sid?sidTot():0;
-    b.qty=qty;b.price=price;
+    b.qty=qty;b.price=price;var bdE=$('#be-desc');if(bdE){var bdv=bdE.value.trim();if(bdv)b.desc=bdv;else delete b.desc}
     if(disc>0){b.disc=Math.round(disc*100)/100;if(cpo)b.cup=cpo.name;else if(!b.cup)b.cup='manual'}else{delete b.disc;delete b.cup}
     var msg='Compra salva';
     if(b.sid){
@@ -1656,18 +1673,140 @@ A.retGo=function(el){
   else if(!b.paid)left=0;
   closeSheet();save();render();toast(left>0?'Devolva '+brl(left)+' ao cliente':'Devolução registrada');
 };
-function extratoText(c){
-  var tot=0,L=[];c.buys.slice().sort(function(a,b){return a.t-b.t}).forEach(function(b){tot+=bnet(b);L.push('• '+fmtD(ymd(new Date(b.t)))+' '+b.name+(varLabel(b)?' ('+varLabel(b)+')':'')+' '+b.qty+'× = '+brl(bnet(b)))});
-  var o=owed(c),t='Extrato de '+c.name+(S.shop?' · '+S.shop:'')+'\n\nCompras:\n'+(L.join('\n')||'Nenhuma compra')+'\n\nTotal comprado: '+brl(tot)+'\nJá pago: '+brl(Math.max(0,tot-o))+'\nA receber: '+brl(o);
-  var ab=(c.parc||[]).filter(function(p){return pend(p)>0}).sort(function(a,b){return a.due<b.due?-1:1});
-  if(ab.length)t+='\n\nParcelas em aberto:\n'+ab.map(function(p){return '• '+p.i+'/'+p.n+' vence '+fmtD(p.due)+' — '+brl(pend(p))}).join('\n');
-  var pg=(c.parc||[]).filter(function(p){return p.paid&&p.fp});
-  if(pg.length)t+='\n\nPagamentos:\n'+pg.map(function(p){return '• '+p.i+'/'+p.n+' — '+brl(p.val)+' ('+p.fp+')'}).join('\n');
+/* ---- Quanto falta pagar por compra / venda ---- */
+function sidPend(c,sid){return (c.parc||[]).filter(function(p){return p.sid===sid}).reduce(function(a,p){return a+pend(p)},0)}
+function saleTot(c,sid){return c.buys.filter(function(b){return b.sid===sid}).reduce(function(a,b){return a+bnet(b)},0)}
+function buyOpen(c,b){
+  if(!b.sid)return b.paid?0:bnet(b);
+  var st=saleTot(c,b.sid);return st>0?Math.round(sidPend(c,b.sid)*bnet(b)/st*100)/100:0;
+}
+
+/* ---- Filtro das compras do cliente ---- */
+function cfOn(){var f=T.cf||{};return !!(f.st&&f.st!=='all'||f.from||f.to||f.q)}
+function cliFiltered(c){
+  var f=T.cf||{},from=f.from?new Date(f.from+'T00:00:00').getTime():0,to=f.to?new Date(f.to+'T23:59:59').getTime():Infinity,q=norm(f.q||'');
+  return c.buys.filter(function(b){
+    if(b.t<from||b.t>to)return false;
+    var open=buyOpen(c,b)>0;
+    if(f.st==='rec'&&!open)return false;
+    if(f.st==='pag'&&open)return false;
+    if(q&&norm([b.name,b.desc,b.color,b.size].join(' ')).indexOf(q)<0)return false;
+    return true;
+  });
+}
+function cfSumHTML(c){
+  var fl=cliFiltered(c),tot=0,fal=0;fl.forEach(function(b){tot+=bnet(b);fal+=buyOpen(c,b)});
+  return fl.length+' de '+c.buys.length+(c.buys.length===1?' compra':' compras')+' · total <b>'+brl(tot)+'</b> · falta <b>'+brl(Math.round(fal*100)/100)+'</b>';
+}
+function cliFilterBar(c){
+  if(!c.buys.length)return '';
+  var f=T.cf,on=cfOn(),h='<button class="btn block" data-act="cfTog" style="margin-bottom:6px">Filtro'+(on?' (ativo)':'')+(T.cfOpen?' ▴':' ▾')+'</button>';
+  if(T.cfOpen){
+    h+='<div class="cfpanel"><div class="seg" style="margin-top:0">'
+      +[['all','Todas'],['rec','A receber'],['pag','Pagas']].map(function(o){return '<button class="'+(f.st===o[0]?'on':'')+'" data-act="cfSt" data-v="'+o[0]+'">'+o[1]+'</button>'}).join('')+'</div>'
+      +'<div class="two-f"><label class="fld"><span>De</span><input id="cf-from" type="date" data-on="cfIn" value="'+esc(f.from)+'"></label><label class="fld"><span>Até</span><input id="cf-to" type="date" data-on="cfIn" value="'+esc(f.to)+'"></label></div>'
+      +'<input class="search" id="cf-q" data-on="cfIn" type="search" placeholder="Produto ou descrição" value="'+esc(f.q)+'" autocomplete="off" style="margin-bottom:8px">'
+      +'<small class="num" id="cf-sum" style="display:block;margin-bottom:8px">'+cfSumHTML(c)+'</small>'
+      +'<button class="btn pri block" data-act="cfSend">Enviar compras filtradas ao cliente</button>'
+      +(on?'<button class="link" data-act="cfClear" style="color:var(--muted);margin-top:8px">Limpar filtro</button>':'')+'</div>';
+  }
+  return h;
+}
+function cfRefresh(){
+  var c=client(T.client);if(!c)return;
+  var e=$('#cl-buys');if(e)e.innerHTML=cliBuysHTML(c);
+  var s=$('#cf-sum');if(s)s.innerHTML=cfSumHTML(c);
+}
+H.cfIn=function(){
+  var g=function(i){var e=$(i);return e?e.value:''};
+  T.cf.from=g('#cf-from');T.cf.to=g('#cf-to');T.cf.q=g('#cf-q');cfRefresh();
+};
+A.cfTog=function(){T.cfOpen=!T.cfOpen;render()};
+A.cfSt=function(el){T.cf.st=el.dataset.v;render()};
+A.cfClear=function(){T.cf={st:'all',from:'',to:'',q:''};render()};
+A.cfSend=function(el){
+  var c=client(T.client);if(!c)return;
+  if(!cliFiltered(c).length){toast('Nenhuma compra neste filtro');return}
+  A.extrato({dataset:{v:'filt'}});
+};
+
+/* ---- Extrato: escolher compras, ver quanto falta e enviar ---- */
+var EX=null,EXDAY={};
+function exExpand(c,set){
+  var out=new Set(set);
+  c.buys.forEach(function(b){if(b.sid&&set.has(b.id))c.buys.forEach(function(x){if(x.sid===b.sid)out.add(x.id)})});
+  return out;
+}
+function exCalc(c,set){
+  var bs=c.buys.filter(function(b){return set.has(b.id)}),tot=0,fal=0,sids={};
+  bs.forEach(function(b){tot+=bnet(b);if(b.sid)sids[b.sid]=1;else if(!b.paid)fal+=bnet(b)});
+  Object.keys(sids).forEach(function(s){fal+=sidPend(c,s)});
+  return {bs:bs,tot:Math.round(tot*100)/100,fal:Math.round(fal*100)/100,sids:Object.keys(sids)};
+}
+function extratoText(c,set,withPar){
+  var r=exCalc(c,set),L=[];
+  r.bs.slice().sort(function(a,b){return a.t-b.t}).forEach(function(b){
+    L.push('• '+fmtD(ymd(new Date(b.t)))+' '+b.name+(varLabel(b)?' ('+varLabel(b)+')':'')+' '+b.qty+'× = '+brl(bnet(b))+(b.desc?'\n   '+b.desc:''));
+  });
+  var t='Extrato de '+c.name+(S.shop?' · '+S.shop:'')+'\n\nCompras:\n'+(L.join('\n')||'Nenhuma compra selecionada')
+    +'\n\nTotal comprado: '+brl(r.tot)+'\nJá pago: '+brl(Math.max(0,r.tot-r.fal))+'\nFalta pagar: '+brl(r.fal);
+  if(withPar){
+    var ab=(c.parc||[]).filter(function(p){return r.sids.indexOf(p.sid)>-1&&pend(p)>0}).sort(function(a,b){return a.due<b.due?-1:1});
+    if(ab.length)t+='\n\nParcelas em aberto:\n'+ab.map(function(p){return '• '+p.i+'/'+p.n+' vence '+fmtD(p.due)+' — '+brl(pend(p))}).join('\n');
+    var pg=(c.parc||[]).filter(function(p){return r.sids.indexOf(p.sid)>-1&&p.paid&&p.fp});
+    if(pg.length)t+='\n\nPagamentos:\n'+pg.map(function(p){return '• '+p.i+'/'+p.n+' — '+brl(p.val)+' ('+p.fp+')'}).join('\n');
+  }
   return t;
 }
-A.extrato=function(){
-  var c=client(T.client),t=extratoText(c);
-  sheet('Extrato do cliente','<textarea class="inp" id="ex-t" readonly style="min-height:240px;width:100%">'+esc(t)+'</textarea><button class="btn pri block" data-act="exGo" style="margin-top:10px">Enviar no WhatsApp</button><button class="btn block" data-act="exCopy" style="margin-top:8px">Copiar texto</button>');
+function exRefresh(){
+  var c=client(T.client);if(!c||!EX)return;
+  document.querySelectorAll('#ov [data-on="exTog"]').forEach(function(i){i.checked=EX.sel.has(i.dataset.id)});
+  document.querySelectorAll('#ov [data-on="exDay"]').forEach(function(i){
+    var ids=EXDAY[i.dataset.k]||[],n=ids.filter(function(id){return EX.sel.has(id)}).length;
+    i.checked=n>0&&n===ids.length;i.indeterminate=n>0&&n<ids.length;
+  });
+  var r=exCalc(c,EX.sel),f=$('#ex-fal'),s=$('#ex-sum'),t=$('#ex-t');
+  if(f)f.textContent=brl(r.fal);
+  if(s)s.textContent=r.bs.length+(r.bs.length===1?' compra selecionada':' compras selecionadas')+' · total '+brl(r.tot)+' · já pago '+brl(Math.max(0,r.tot-r.fal));
+  if(t)t.value=extratoText(c,EX.sel,EX.par);
+}
+function exSet(c,b,on){
+  (b.sid?c.buys.filter(function(x){return x.sid===b.sid}):[b]).forEach(function(x){if(on)EX.sel.add(x.id);else EX.sel.delete(x.id)});
+}
+A.extrato=function(el){
+  var c=client(T.client);if(!c)return;
+  var pre=el&&el.dataset&&el.dataset.v==='filt'?cliFiltered(c):c.buys;
+  EX={sel:exExpand(c,new Set(pre.map(function(b){return b.id}))),par:true};
+  EXDAY={};var days=[];
+  c.buys.slice().sort(function(a,b){return b.t-a.t}).forEach(function(b){var k=ymd(new Date(b.t));if(!EXDAY[k]){EXDAY[k]=[];days.push(k)}EXDAY[k].push(b.id)});
+  var list=days.map(function(k){
+    var bs=EXDAY[k].map(function(id){return c.buys.find(function(x){return x.id===id})}),tot=0,fal=0;
+    bs.forEach(function(b){tot+=bnet(b);fal+=buyOpen(c,b)});fal=Math.round(fal*100)/100;
+    return '<div class="exdh"><label class="chk"><input type="checkbox" data-on="exDay" data-k="'+k+'"><span><b>'+fmtDate(bs[0].t)+'</b><small class="num" style="display:block;font-weight:400;color:var(--muted)">Total '+brl(tot)+' · '+(fal>0?'falta '+brl(fal):'tudo pago')+'</small></span></label></div>'
+      +bs.map(function(b){
+        return '<label class="chk exrow"><input type="checkbox" data-on="exTog" data-id="'+b.id+'"><span><b>'+esc(b.name)+'</b>'+(varLabel(b)?' <small>'+esc(varLabel(b))+'</small>':'')
+          +'<small class="num" style="display:block;color:var(--muted)">'+b.qty+' × '+brl(b.price)+' = '+brl(bnet(b))+(buyOpen(c,b)>0?' · falta '+brl(buyOpen(c,b)):' · pago')+'</small>'
+          +(b.desc?'<small class="desc">'+esc(b.desc)+'</small>':'')+'</span></label>';
+      }).join('');
+  }).join('');
+  sheet('Extrato do cliente',
+    '<p class="muted" style="margin:0 0 8px">Marque as compras (ou o dia inteiro) que quer enviar. Compras parceladas entram juntas, com todas as parcelas.</p>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="btn sm" data-act="exQuick" data-v="all">Todas</button><button class="btn sm" data-act="exQuick" data-v="rec">A receber</button><button class="btn sm" data-act="exQuick" data-v="30">Últimos 30 dias</button><button class="btn sm" data-act="exQuick" data-v="none">Limpar</button></div>'
+    +'<div id="ex-list" class="exlist">'+list+'</div>'
+    +'<div class="totbar"><span>Falta pagar (selecionadas)</span><span id="ex-fal"></span></div><small id="ex-sum" class="muted num" style="display:block;margin-bottom:8px"></small>'
+    +'<label class="chk" style="margin-bottom:8px"><input type="checkbox" id="ex-par" data-on="exPar" checked> Incluir as parcelas no texto</label>'
+    +'<textarea class="inp" id="ex-t" readonly style="min-height:220px;width:100%"></textarea>'
+    +'<button class="btn pri block" data-act="exGo" style="margin-top:10px">Enviar no WhatsApp</button><button class="btn block" data-act="exCopy" style="margin-top:8px">Copiar texto</button>');
+  exRefresh();
+};
+H.exTog=function(el){var c=client(T.client),b=c&&c.buys.find(function(x){return x.id===el.dataset.id});if(!b||!EX)return;exSet(c,b,el.checked);exRefresh()};
+H.exDay=function(el){var c=client(T.client);if(!c||!EX)return;(EXDAY[el.dataset.k]||[]).forEach(function(id){var b=c.buys.find(function(x){return x.id===id});if(b)exSet(c,b,el.checked)});exRefresh()};
+H.exPar=function(el){if(!EX)return;EX.par=el.checked;exRefresh()};
+A.exQuick=function(el){
+  var c=client(T.client);if(!c||!EX)return;
+  var v=el.dataset.v,lim=Date.now()-30*864e5,s=new Set();
+  c.buys.forEach(function(b){if(v==='all'||(v==='rec'&&buyOpen(c,b)>0)||(v==='30'&&b.t>=lim))s.add(b.id)});
+  EX.sel=exExpand(c,s);exRefresh();
 };
 A.exGo=function(){var c=client(T.client),d=String(c.phone||'').replace(/\D/g,'');if(d.length===10||d.length===11)d='55'+d;window.open('https://wa.me/'+d+'?text='+encodeURIComponent($('#ex-t').value),'_blank')};
 A.exCopy=function(){var e=$('#ex-t'),t=e.value;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){toast('Texto copiado')}).catch(function(){e.select();toast('Selecionado. Copie com o toque longo.')})};
